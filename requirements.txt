@@ -1,0 +1,5 @@
+# Dependencias de la aplicación.
+# TODO: una vez instaladas, fijar versiones exactas con `pip freeze` para que
+# el contenedor y tu computador usen lo mismo.
+fastapi
+uvicorn[standard]
