@@ -3,3 +3,7 @@
 # el contenedor y tu computador usen lo mismo.
 fastapi
 uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+bcrypt
+python-dotenv
