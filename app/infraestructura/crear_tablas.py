@@ -1,0 +1,17 @@
+"""Script: crea las tablas en la base de datos indicada en .env.
+
+Se ejecuta así, desde la raíz del proyecto:  python -m app.infraestructura.crear_tablas
+"""
+
+from app.configuracion import url_base_de_datos
+from app.infraestructura.base_de_datos import crear_motor, crear_tablas
+
+
+def main() -> None:
+    motor = crear_motor(url_base_de_datos())
+    crear_tablas(motor)
+    print("Tablas creadas (o ya existían).")
+
+
+if __name__ == "__main__":
+    main()
