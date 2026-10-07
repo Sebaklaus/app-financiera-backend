@@ -28,7 +28,9 @@ class RespuestaRegistro(BaseModel):
     creado_en: datetime
 
 
-@router.post("/registro", response_model=RespuestaRegistro, status_code=201)
+@router.post("/registro", response_model=RespuestaRegistro, status_code=201, responses ={409: 
+{"description": "Email ya registrado"},
+422: {"description": "Solicitud inválida"}})
 def post_registro(
     solicitud: SolicitudRegistro,
     repositorio: Annotated[RepositorioUsuarios, Depends(obtener_repositorio_usuarios)],
