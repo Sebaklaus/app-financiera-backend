@@ -23,3 +23,7 @@ class CredencialesInvalidas(ErrorDeDominio):
 
 class TokenInvalido(ErrorDeDominio):
     """El token de acceso no sirve: está vencido, alterado o no es nuestro."""
+
+
+class MovimientoInvalido(ErrorDeDominio):
+    """Un ingreso o gasto con datos que no cumplen las reglas (monto, fecha, texto...)."""

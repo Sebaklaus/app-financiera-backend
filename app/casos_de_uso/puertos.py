@@ -7,6 +7,7 @@ lista en memoria. Los adaptadores (capa de afuera) cumplen estos contratos.
 from typing import Protocol
 from uuid import UUID
 
+from app.dominio.movimiento import Movimiento
 from app.dominio.usuario import Usuario
 
 
@@ -31,4 +32,12 @@ class EmisorTokens(Protocol):
 
     def leer(self, token: str) -> UUID:
         """Devuelve el id del usuario o lanza TokenInvalido."""
+        ...
+
+
+class RepositorioMovimientos(Protocol):
+    def guardar(self, movimiento: Movimiento) -> None: ...
+
+    def listar_por_usuario(self, usuario_id: UUID) -> list[Movimiento]:
+        """Los movimientos de ESE usuario, el más reciente primero."""
         ...
