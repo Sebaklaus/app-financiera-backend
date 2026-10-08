@@ -5,6 +5,7 @@ lista en memoria. Los adaptadores (capa de afuera) cumplen estos contratos.
 """
 
 from typing import Protocol
+from uuid import UUID
 
 from app.dominio.usuario import Usuario
 
@@ -17,3 +18,17 @@ class RepositorioUsuarios(Protocol):
 
 class HasheadorContrasenas(Protocol):
     def hashear(self, contrasena: str) -> str: ...
+
+    def verificar(self, contrasena: str, hash_guardado: str) -> bool: ...
+
+
+class EmisorTokens(Protocol):
+    """Fabrica y lee los 'brazaletes' (tokens de acceso)."""
+
+    segundos_de_vida: int
+
+    def emitir(self, usuario_id: UUID) -> str: ...
+
+    def leer(self, token: str) -> UUID:
+        """Devuelve el id del usuario o lanza TokenInvalido."""
+        ...

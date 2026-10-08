@@ -15,3 +15,11 @@ class ContrasenaInvalida(ErrorDeDominio):
 
 class EmailYaRegistrado(ErrorDeDominio):
     pass
+
+
+class CredencialesInvalidas(ErrorDeDominio):
+    """Email o contraseña incorrectos. El mensaje es siempre el mismo, a propósito."""
+
+
+class TokenInvalido(ErrorDeDominio):
+    """El token de acceso no sirve: está vencido, alterado o no es nuestro."""
