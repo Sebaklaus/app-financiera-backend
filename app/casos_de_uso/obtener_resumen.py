@@ -2,6 +2,9 @@
 
 Solo cuenta como ASIGNADO lo que ya está decidido: necesidades y entretenimiento se asignan
 al registrar el ingreso; inversión y estabilidad, solo cuando la persona los confirma.
+
+Con `periodo` se resume un solo mes: cuentan los movimientos de ese mes y las propuestas de
+los ingresos de ese mes. Cada mes se mira por separado: lo que sobra no pasa al siguiente.
 """
 
 from dataclasses import dataclass
@@ -11,6 +14,7 @@ from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.dominio.categorias import Categoria
 from app.dominio.confirmacion import CATEGORIAS_CON_CONFIRMACION, EstadoConfirmacion
 from app.dominio.movimiento import TipoMovimiento, repartir
+from app.dominio.periodo import Periodo
 
 
 @dataclass(frozen=True)
@@ -34,7 +38,9 @@ class Resumen:
     lineas: tuple[LineaResumen, ...]
 
 
-def obtener_resumen(usuario_id: UUID, repositorio: RepositorioMovimientos) -> Resumen:
+def obtener_resumen(
+    usuario_id: UUID, repositorio: RepositorioMovimientos, periodo: Periodo | None = None
+) -> Resumen:
     asignado = {categoria: 0 for categoria in Categoria}
     gastado = {categoria: 0 for categoria in Categoria}
     por_confirmar = {categoria: 0 for categoria in Categoria}
@@ -42,8 +48,12 @@ def obtener_resumen(usuario_id: UUID, repositorio: RepositorioMovimientos) -> Re
     ingresos_total = 0
     gastos_total = 0
 
+    ingresos_del_periodo: set[UUID] = set()
     for movimiento in repositorio.listar_por_usuario(usuario_id):
+        if periodo is not None and not periodo.contiene(movimiento.fecha):
+            continue
         if movimiento.tipo is TipoMovimiento.INGRESO:
+            ingresos_del_periodo.add(movimiento.id)
             ingresos_total += movimiento.monto
             # Cada ingreso se reparte por separado, para que los pesos sobrantes
             # de cada reparto se traten igual que al registrarlo.
@@ -55,6 +65,8 @@ def obtener_resumen(usuario_id: UUID, repositorio: RepositorioMovimientos) -> Re
             gastado[movimiento.categoria] += movimiento.monto
 
     for confirmacion in repositorio.listar_confirmaciones_por_usuario(usuario_id):
+        if periodo is not None and confirmacion.ingreso_id not in ingresos_del_periodo:
+            continue
         if confirmacion.estado is EstadoConfirmacion.CONFIRMADA:
             asignado[confirmacion.categoria] += confirmacion.monto
         elif confirmacion.estado is EstadoConfirmacion.PENDIENTE:

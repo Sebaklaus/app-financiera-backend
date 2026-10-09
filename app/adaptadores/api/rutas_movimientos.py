@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias_auth import obtener_usuario_actual_id
@@ -12,6 +12,7 @@ from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_mov
 from app.adaptadores.api.rutas_confirmaciones import RespuestaConfirmacion, a_respuesta
 from app.casos_de_uso.editar_movimiento import editar_movimiento
 from app.casos_de_uso.eliminar_movimiento import eliminar_movimiento
+from app.casos_de_uso.listar_movimientos import listar_movimientos
 from app.casos_de_uso.obtener_resumen import obtener_resumen
 from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.casos_de_uso.registrar_gasto import registrar_gasto
@@ -19,6 +20,7 @@ from app.casos_de_uso.registrar_ingreso import registrar_ingreso
 from app.dominio.categorias import Categoria
 from app.dominio.errores import EdicionNoPermitida, MovimientoInvalido, MovimientoNoEncontrado
 from app.dominio.movimiento import Movimiento
+from app.dominio.periodo import Periodo
 
 router = APIRouter()
 
@@ -33,6 +35,15 @@ _RESPUESTAS_PROTEGIDAS = {
 # strict=True: rechaza "1000" y 1000.5; solo acepta enteros. Los topes reales viven en el dominio.
 Monto = Annotated[int, Field(strict=True, gt=0, le=1_000_000_000)]
 Descripcion = Annotated[str, Field(min_length=1, max_length=200)]
+# Formato AAAA-MM. Un mes mal escrito se rechaza con 422 antes de llegar al dominio.
+MesConsulta = Annotated[
+    str | None,
+    Query(
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Mes en formato AAAA-MM (por ejemplo 2026-10). Si se omite, se usan todos.",
+        examples=["2026-10"],
+    ),
+]
 
 
 class SolicitudIngreso(BaseModel):
@@ -105,9 +116,20 @@ class RespuestaLinea(BaseModel):
 
 
 class RespuestaResumen(BaseModel):
+    mes: str | None  # el mes consultado (AAAA-MM), o null si se resumió todo
     ingresos_total: int
     gastos_total: int
     categorias: list[RespuestaLinea]
+
+
+def _periodo(mes: str | None) -> Periodo | None:
+    """Convierte el texto AAAA-MM; si no sirve, responde 422 en vez de fallar."""
+    if mes is None:
+        return None
+    try:
+        return Periodo.desde_texto(mes)
+    except MovimientoInvalido as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 def _a_respuesta(movimiento: Movimiento) -> RespuestaMovimiento:
@@ -189,10 +211,11 @@ def post_gasto(
     responses={401: _RESPUESTAS_PROTEGIDAS[401]},
 )
 def get_movimientos(
-    usuario_id: UsuarioActual, repositorio: Repositorio
+    usuario_id: UsuarioActual, repositorio: Repositorio, mes: MesConsulta = None
 ) -> list[RespuestaMovimiento]:
-    """Tus ingresos y gastos, el más reciente primero. Nunca los de otra persona."""
-    return [_a_respuesta(m) for m in repositorio.listar_por_usuario(usuario_id)]
+    """Tus ingresos y gastos, el más reciente primero (todos, o solo los de un mes)."""
+    periodo = _periodo(mes)
+    return [_a_respuesta(m) for m in listar_movimientos(usuario_id, repositorio, periodo)]
 
 
 @router.patch(
@@ -257,10 +280,17 @@ def delete_movimiento(
     response_model=RespuestaResumen,
     responses={401: _RESPUESTAS_PROTEGIDAS[401]},
 )
-def get_resumen(usuario_id: UsuarioActual, repositorio: Repositorio) -> RespuestaResumen:
-    """Por categoría: cuánto se asignó, cuánto gastaste y cuánto te queda."""
-    resumen = obtener_resumen(usuario_id, repositorio)
+def get_resumen(
+    usuario_id: UsuarioActual, repositorio: Repositorio, mes: MesConsulta = None
+) -> RespuestaResumen:
+    """Por categoría: cuánto se asignó, cuánto gastaste y cuánto te queda.
+
+    Con `mes` (AAAA-MM) se resume solo ese mes; cada mes se mira por separado.
+    """
+    periodo = _periodo(mes)
+    resumen = obtener_resumen(usuario_id, repositorio, periodo)
     return RespuestaResumen(
+        mes=None if periodo is None else str(periodo),
         ingresos_total=resumen.ingresos_total,
         gastos_total=resumen.gastos_total,
         categorias=[

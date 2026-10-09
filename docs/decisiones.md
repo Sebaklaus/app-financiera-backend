@@ -91,3 +91,19 @@ auditoría futura convendría un registro de cambios (ley 21.719: derechos de re
 
 **Pendiente:** limpiar periódicamente los tokens vencidos de la tabla, bloqueo por intentos
 fallidos de login, y guardar el refresco en el almacenamiento seguro del teléfono en el cliente.
+
+## D10 — Resumen y listado por mes (HU-28)
+
+**Decisión:** `GET /resumen?mes=2026-10` y `GET /movimientos?mes=2026-10` filtran por mes
+calendario (formato AAAA-MM). Sin `mes`, se usa todo el historial, como antes. La respuesta del
+resumen indica qué mes se consultó (`mes`, o `null` si fue todo).
+
+**Reglas:**
+- Cada mes se mira por separado: lo que sobra de una categoría **no pasa** al mes siguiente.
+  Es la lectura más simple del 50/25/15/10; si el informe pide arrastrar saldos, se agrega después.
+- Una propuesta (25 % / 15 %) cuenta en el mes de **su ingreso**, no en el mes en que se decide.
+- Un mes mal escrito responde 422 (`2026-13`, `octubre`, `26-10`...).
+- El mes es de calendario y usa la fecha del movimiento tal como se registró (sin zona horaria).
+
+**Pendiente:** definir con el docente si los saldos deben arrastrarse entre meses, y la zona
+horaria (la fecha por omisión de un movimiento usa UTC, y cerca de medianoche puede caer en otro día).
