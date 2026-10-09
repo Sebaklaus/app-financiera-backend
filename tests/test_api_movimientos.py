@@ -1,56 +1,13 @@
 """Prueba las rutas de ingresos, gastos y resumen con SQLite en memoria."""
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 
-from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
-from app.adaptadores.api.dependencias_auth import obtener_emisor_tokens
-from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
-from app.adaptadores.api.rutas_auth import router as router_auth
-from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
-from app.adaptadores.api.rutas_movimientos import router as router_movimientos
-from app.adaptadores.api.rutas_usuarios import router as router_usuarios
-from app.infraestructura.base_de_datos import crear_fabrica_sesiones, crear_tablas
-from app.infraestructura.emisor_jwt import EmisorJWT
-from app.infraestructura.generar_claves import generar_par
-from app.infraestructura.hasheador_bcrypt import HasheadorBcrypt
-from app.infraestructura.repositorio_movimientos_sql import RepositorioMovimientosSQL
-from app.infraestructura.repositorio_usuarios_sql import RepositorioUsuariosSQL
-
-PRIVADA, PUBLICA = generar_par()
+from tests.apoyo_api import crear_cliente
 
 
 @pytest.fixture
 def cliente():
-    motor = create_engine(
-        "sqlite+pysqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
-    )
-    crear_tablas(motor)
-    fabrica = crear_fabrica_sesiones(motor)
-
-    def usuarios_de_prueba():
-        with fabrica() as sesion:
-            yield RepositorioUsuariosSQL(sesion)
-
-    def movimientos_de_prueba():
-        with fabrica() as sesion:
-            yield RepositorioMovimientosSQL(sesion)
-
-    app = FastAPI()
-    app.include_router(router_usuarios)
-    app.include_router(router_auth)
-    app.include_router(router_movimientos)
-    app.include_router(router_confirmaciones)
-    app.dependency_overrides[obtener_repositorio_usuarios] = usuarios_de_prueba
-    app.dependency_overrides[obtener_repositorio_movimientos] = movimientos_de_prueba
-    app.dependency_overrides[obtener_hasheador] = lambda: HasheadorBcrypt(costo=4)
-    app.dependency_overrides[obtener_emisor_tokens] = lambda: EmisorJWT(PRIVADA, PUBLICA)
-    return TestClient(app)
+    return crear_cliente()
 
 
 def entrar(cliente, email="ana@correo.cl"):

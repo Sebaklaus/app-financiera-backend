@@ -9,10 +9,13 @@ from uuid import UUID
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
+from app.adaptadores.api.dependencias import obtener_sesion
 from app.casos_de_uso.puertos import EmisorTokens
 from app.dominio.errores import TokenInvalido
 from app.infraestructura.emisor_jwt import EmisorJWT
+from app.infraestructura.repositorio_tokens_sql import RepositorioTokensSQL
 
 load_dotenv()
 
@@ -33,6 +36,12 @@ def obtener_emisor_tokens() -> EmisorJWT:
         clave_privada=ruta_privada.read_text(encoding="ascii"),
         clave_publica=ruta_publica.read_text(encoding="ascii"),
     )
+
+
+def obtener_repositorio_tokens(
+    sesion: Annotated[Session, Depends(obtener_sesion)],
+) -> RepositorioTokensSQL:
+    return RepositorioTokensSQL(sesion)
 
 
 def obtener_usuario_actual_id(

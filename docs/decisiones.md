@@ -70,3 +70,24 @@ que el historial contradiga decisiones ya tomadas.
 
 **Pendiente:** el borrado es definitivo (sin papelera ni historial de cambios). Para
 auditoría futura convendría un registro de cambios (ley 21.719: derechos de rectificación y supresión).
+
+## D9 — Sesión con token de refresco y logout (HU-02)
+
+**Decisión:** el login entrega dos tokens. El de **acceso** (JWT, 15 min) abre las rutas; el de
+**refresco** (opaco, 30 días) solo sirve para pedir un par nuevo en `POST /refrescar`.
+`POST /logout` cierra una sesión y `POST /logout/todas` cierra todas las de la persona.
+
+**Reglas:**
+- El token de refresco se guarda en la base solo como huella SHA-256 (tabla `tokens_refresco`);
+  si alguien leyera la base, no podría usarlo. SHA-256 y no bcrypt: el token es aleatorio y largo,
+  no una contraseña adivinable.
+- **Rotación:** cada refresco se usa una sola vez; al renovar se entrega uno nuevo y el viejo se revoca.
+- **Detección de robo:** si llega un token ya usado, se cierran todas las sesiones de esa persona.
+  La revocación es atómica (`UPDATE ... WHERE revocado_en IS NULL`), así que dos peticiones
+  simultáneas con el mismo token no pueden ganar las dos.
+- El logout siempre responde 204: cerrar una sesión ya cerrada no es un error ni revela nada.
+- Un token de acceso ya emitido sigue valiendo hasta que venza (máx. 15 min) tras un logout:
+  es el costo de usar JWT sin lista de revocación. Por eso la vida del acceso es corta.
+
+**Pendiente:** limpiar periódicamente los tokens vencidos de la tabla, bloqueo por intentos
+fallidos de login, y guardar el refresco en el almacenamiento seguro del teléfono en el cliente.

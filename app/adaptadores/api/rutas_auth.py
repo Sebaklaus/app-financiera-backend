@@ -1,18 +1,40 @@
-"""Adaptador HTTP del inicio de sesión (HU-02) y una ruta protegida de ejemplo."""
+"""Adaptador HTTP de la sesión (HU-02): login, renovar, logout y una ruta protegida de ejemplo."""
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
-from app.adaptadores.api.dependencias_auth import obtener_emisor_tokens, obtener_usuario_actual_id
+from app.adaptadores.api.dependencias_auth import (
+    obtener_emisor_tokens,
+    obtener_repositorio_tokens,
+    obtener_usuario_actual_id,
+)
 from app.casos_de_uso.iniciar_sesion import iniciar_sesion
-from app.casos_de_uso.puertos import EmisorTokens, HasheadorContrasenas, RepositorioUsuarios
-from app.dominio.errores import CredencialesInvalidas
+from app.casos_de_uso.puertos import (
+    EmisorTokens,
+    HasheadorContrasenas,
+    RepositorioTokensRefresco,
+    RepositorioUsuarios,
+)
+from app.casos_de_uso.sesiones import (
+    ParDeTokens,
+    abrir_sesion,
+    cerrar_sesion,
+    cerrar_todas_las_sesiones,
+    renovar_sesion,
+)
+from app.dominio.errores import CredencialesInvalidas, TokenInvalido
 
 router = APIRouter()
+
+_CABECERA_401 = {"WWW-Authenticate": "Bearer"}
+UsuarioActual = Annotated[UUID, Depends(obtener_usuario_actual_id)]
+RepoTokens = Annotated[RepositorioTokensRefresco, Depends(obtener_repositorio_tokens)]
+Emisor = Annotated[EmisorTokens, Depends(obtener_emisor_tokens)]
+TokenRefrescoTexto = Annotated[str, Field(min_length=1, max_length=512)]
 
 
 class SolicitudLogin(BaseModel):
@@ -20,14 +42,25 @@ class SolicitudLogin(BaseModel):
     contrasena: Annotated[str, Field(min_length=1, max_length=256)]
 
 
+class SolicitudRefresco(BaseModel):
+    refresh_token: TokenRefrescoTexto
+
+
 class RespuestaLogin(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
-    expires_in: int  # segundos de vida del token
+    expires_in: int  # segundos de vida del token de acceso
 
 
 class RespuestaYo(BaseModel):
     id: UUID
+
+
+def _a_respuesta(par: ParDeTokens) -> RespuestaLogin:
+    return RespuestaLogin(
+        access_token=par.acceso, refresh_token=par.refresco, expires_in=par.expira_en
+    )
 
 
 @router.post(
@@ -39,17 +72,48 @@ def post_login(
     solicitud: SolicitudLogin,
     repositorio: Annotated[RepositorioUsuarios, Depends(obtener_repositorio_usuarios)],
     hasheador: Annotated[HasheadorContrasenas, Depends(obtener_hasheador)],
-    emisor: Annotated[EmisorTokens, Depends(obtener_emisor_tokens)],
+    emisor: Emisor,
+    tokens: RepoTokens,
 ) -> RespuestaLogin:
     try:
         usuario = iniciar_sesion(solicitud.email, solicitud.contrasena, repositorio, hasheador)
     except CredencialesInvalidas as error:
-        raise HTTPException(
-            status_code=401, detail=str(error), headers={"WWW-Authenticate": "Bearer"}
-        ) from error
-    return RespuestaLogin(
-        access_token=emisor.emitir(usuario.id), expires_in=emisor.segundos_de_vida
-    )
+        raise HTTPException(status_code=401, detail=str(error), headers=_CABECERA_401) from error
+    return _a_respuesta(abrir_sesion(usuario.id, tokens, emisor))
+
+
+@router.post(
+    "/refrescar",
+    response_model=RespuestaLogin,
+    responses={401: {"description": "El token de refresco no sirve (vencido, usado o falso)"}},
+)
+def post_refrescar(
+    solicitud: SolicitudRefresco, emisor: Emisor, tokens: RepoTokens
+) -> RespuestaLogin:
+    """Cambia tu token de refresco por un par nuevo. El token que enviaste deja de servir."""
+    try:
+        par = renovar_sesion(solicitud.refresh_token, tokens, emisor)
+    except TokenInvalido as error:
+        raise HTTPException(status_code=401, detail=str(error), headers=_CABECERA_401) from error
+    return _a_respuesta(par)
+
+
+@router.post("/logout", status_code=204)
+def post_logout(solicitud: SolicitudRefresco, tokens: RepoTokens) -> Response:
+    """Cierra esta sesión. Siempre responde 204, exista o no el token."""
+    cerrar_sesion(solicitud.refresh_token, tokens)
+    return Response(status_code=204)
+
+
+@router.post(
+    "/logout/todas",
+    status_code=204,
+    responses={401: {"description": "Falta el token o es inválido o está vencido"}},
+)
+def post_logout_todas(usuario_id: UsuarioActual, tokens: RepoTokens) -> Response:
+    """Cierra TODAS tus sesiones (por ejemplo, si perdiste el teléfono)."""
+    cerrar_todas_las_sesiones(usuario_id, tokens)
+    return Response(status_code=204)
 
 
 @router.get(
@@ -57,6 +121,6 @@ def post_login(
     response_model=RespuestaYo,
     responses={401: {"description": "Falta el token o es inválido o está vencido"}},
 )
-def get_yo(usuario_id: Annotated[UUID, Depends(obtener_usuario_actual_id)]) -> RespuestaYo:
+def get_yo(usuario_id: UsuarioActual) -> RespuestaYo:
     """Ruta protegida de prueba: solo responde si llegas con un token válido."""
     return RespuestaYo(id=usuario_id)

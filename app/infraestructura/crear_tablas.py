@@ -5,7 +5,10 @@ Es seguro repetirlo: solo crea las tablas que falten.
 """
 
 from app.configuracion import url_base_de_datos
-from app.infraestructura import repositorio_movimientos_sql  # noqa: F401  (registra la tabla)
+from app.infraestructura import (  # noqa: F401  (registran las tablas)
+    repositorio_movimientos_sql,
+    repositorio_tokens_sql,
+)
 from app.infraestructura.base_de_datos import crear_motor, crear_tablas
 
 

@@ -1,10 +1,13 @@
 """Dobles de prueba compartidos: un repositorio de movimientos que vive en memoria."""
 
+from dataclasses import replace
+from datetime import datetime
 from uuid import UUID
 
 from app.dominio.confirmacion import Confirmacion, EstadoConfirmacion
 from app.dominio.errores import ConfirmacionYaDecidida
 from app.dominio.movimiento import Movimiento
+from app.dominio.token_refresco import TokenRefresco
 
 
 class RepositorioEnMemoria:
@@ -67,3 +70,38 @@ class RepositorioEnMemoria:
             k: c for k, c in self.confirmaciones.items() if c.ingreso_id != movimiento_id
         }
         return True
+
+
+class RepositorioTokensEnMemoria:
+    def __init__(self) -> None:
+        self.tokens: dict[UUID, TokenRefresco] = {}
+
+    def guardar(self, token: TokenRefresco) -> None:
+        self.tokens[token.id] = token
+
+    def buscar_por_huella(self, huella: str) -> TokenRefresco | None:
+        return next((t for t in self.tokens.values() if t.huella == huella), None)
+
+    def revocar(self, token_id: UUID, ahora: datetime) -> bool:
+        actual = self.tokens[token_id]
+        if actual.revocado_en is not None:
+            return False
+        self.tokens[token_id] = replace(actual, revocado_en=ahora)
+        return True
+
+    def revocar_todos_de_usuario(self, usuario_id: UUID, ahora: datetime) -> None:
+        for token_id, token in list(self.tokens.items()):
+            if token.usuario_id == usuario_id and token.revocado_en is None:
+                self.tokens[token_id] = replace(token, revocado_en=ahora)
+
+
+class EmisorFalso:
+    """Emisor de tokens de acceso que no firma nada: basta para probar la lógica."""
+
+    segundos_de_vida = 900
+
+    def emitir(self, usuario_id: UUID) -> str:
+        return f"acceso-{usuario_id}"
+
+    def leer(self, token: str) -> UUID:
+        return UUID(token.removeprefix("acceso-"))

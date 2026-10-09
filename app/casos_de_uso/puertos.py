@@ -4,11 +4,13 @@ Los casos de uso piden "algo que sepa guardar usuarios" sin saber si es PostgreS
 lista en memoria. Los adaptadores (capa de afuera) cumplen estos contratos.
 """
 
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from app.dominio.confirmacion import Confirmacion
 from app.dominio.movimiento import Movimiento
+from app.dominio.token_refresco import TokenRefresco
 from app.dominio.usuario import Usuario
 
 
@@ -77,3 +79,15 @@ class RepositorioMovimientos(Protocol):
     def eliminar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> bool:
         """Borra el movimiento (y las propuestas de un ingreso). False si no era de esa persona."""
         ...
+
+
+class RepositorioTokensRefresco(Protocol):
+    def guardar(self, token: TokenRefresco) -> None: ...
+
+    def buscar_por_huella(self, huella: str) -> TokenRefresco | None: ...
+
+    def revocar(self, token_id: UUID, ahora: datetime) -> bool:
+        """Revoca solo si seguía vigente. False si ya estaba revocado (otro llegó primero)."""
+        ...
+
+    def revocar_todos_de_usuario(self, usuario_id: UUID, ahora: datetime) -> None: ...
