@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias_auth import obtener_usuario_actual_id
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
+from app.adaptadores.api.rutas_confirmaciones import RespuestaConfirmacion, a_respuesta
 from app.casos_de_uso.obtener_resumen import obtener_resumen
 from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.casos_de_uso.registrar_gasto import registrar_gasto
@@ -57,7 +58,8 @@ class RespuestaIngreso(BaseModel):
     monto: int
     descripcion: str
     fecha: date
-    reparto: RespuestaReparto
+    reparto: RespuestaReparto  # es una PROPUESTA: inversión y estabilidad esperan tu decisión
+    por_confirmar: list[RespuestaConfirmacion]
 
 
 class RespuestaGasto(BaseModel):
@@ -79,9 +81,11 @@ class RespuestaMovimiento(BaseModel):
 
 class RespuestaLinea(BaseModel):
     categoria: Categoria
-    asignado: int
+    asignado: int  # ya decidido: lo que de verdad cuenta como tuyo en esta categoría
     gastado: int
     disponible: int
+    por_confirmar: int  # propuesto, esperando tu decisión
+    rechazado: int  # propuesto y rechazado: ese dinero queda sin apartar
 
 
 class RespuestaResumen(BaseModel):
@@ -110,7 +114,7 @@ def _a_respuesta(movimiento: Movimiento) -> RespuestaMovimiento:
 def post_ingreso(
     solicitud: SolicitudIngreso, usuario_id: UsuarioActual, repositorio: Repositorio
 ) -> RespuestaIngreso:
-    """Registra un ingreso y devuelve cómo se reparte con la regla 50/25/15/10."""
+    """Registra un ingreso y PROPONE su reparto 50/25/15/10 (25 % y 15 % quedan pendientes)."""
     try:
         resultado = registrar_ingreso(
             usuario_id,
@@ -128,6 +132,7 @@ def post_ingreso(
         descripcion=movimiento.descripcion,
         fecha=movimiento.fecha,
         reparto=RespuestaReparto(**{c.value: m for c, m in resultado.reparto.items()}),
+        por_confirmar=[a_respuesta(c) for c in resultado.confirmaciones],
     )
 
 
@@ -191,6 +196,8 @@ def get_resumen(usuario_id: UsuarioActual, repositorio: Repositorio) -> Respuest
                 asignado=linea.asignado,
                 gastado=linea.gastado,
                 disponible=linea.disponible,
+                por_confirmar=linea.por_confirmar,
+                rechazado=linea.rechazado,
             )
             for linea in resumen.lineas
         ],

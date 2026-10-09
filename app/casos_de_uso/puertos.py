@@ -7,6 +7,7 @@ lista en memoria. Los adaptadores (capa de afuera) cumplen estos contratos.
 from typing import Protocol
 from uuid import UUID
 
+from app.dominio.confirmacion import Confirmacion
 from app.dominio.movimiento import Movimiento
 from app.dominio.usuario import Usuario
 
@@ -36,8 +37,26 @@ class EmisorTokens(Protocol):
 
 
 class RepositorioMovimientos(Protocol):
-    def guardar(self, movimiento: Movimiento) -> None: ...
+    def guardar(self, movimiento: Movimiento) -> None:
+        """Guarda un gasto."""
+        ...
+
+    def guardar_ingreso(self, ingreso: Movimiento, confirmaciones: list[Confirmacion]) -> None:
+        """Guarda el ingreso y sus propuestas de confirmación juntos: o todo o nada."""
+        ...
 
     def listar_por_usuario(self, usuario_id: UUID) -> list[Movimiento]:
         """Los movimientos de ESE usuario, el más reciente primero."""
+        ...
+
+    def listar_confirmaciones_por_usuario(self, usuario_id: UUID) -> list[Confirmacion]:
+        """Las propuestas de ESE usuario, la más reciente primero."""
+        ...
+
+    def buscar_confirmacion(self, usuario_id: UUID, confirmacion_id: UUID) -> Confirmacion | None:
+        """None si no existe o si pertenece a otra persona."""
+        ...
+
+    def actualizar_confirmacion(self, confirmacion: Confirmacion) -> None:
+        """Guarda la decisión. Lanza ConfirmacionYaDecidida si ya estaba decidida."""
         ...

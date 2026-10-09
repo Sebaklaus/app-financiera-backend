@@ -27,3 +27,11 @@ class TokenInvalido(ErrorDeDominio):
 
 class MovimientoInvalido(ErrorDeDominio):
     """Un ingreso o gasto con datos que no cumplen las reglas (monto, fecha, texto...)."""
+
+
+class ConfirmacionNoEncontrada(ErrorDeDominio):
+    """No existe esa propuesta, o pertenece a otra persona (no se distingue a propósito)."""
+
+
+class ConfirmacionYaDecidida(ErrorDeDominio):
+    """La propuesta ya fue confirmada o rechazada; una decisión no se repite."""

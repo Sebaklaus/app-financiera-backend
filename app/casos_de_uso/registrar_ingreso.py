@@ -1,4 +1,4 @@
-"""Caso de uso: registrar un ingreso y repartirlo con la regla 50/25/15/10 (HU-28)."""
+"""Caso de uso: registrar un ingreso y PROPONER su reparto 50/25/15/10 (HU-28, HU-12)."""
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.dominio.categorias import Categoria
+from app.dominio.confirmacion import Confirmacion, proponer
 from app.dominio.movimiento import (
     Movimiento,
     TipoMovimiento,
@@ -20,6 +21,7 @@ from app.dominio.movimiento import (
 class ResultadoIngreso:
     movimiento: Movimiento
     reparto: dict[Categoria, int]
+    confirmaciones: list[Confirmacion]  # lo que la persona debe aceptar o rechazar
 
 
 def registrar_ingreso(
@@ -30,7 +32,8 @@ def registrar_ingreso(
     repositorio: RepositorioMovimientos,
     hoy: date | None = None,
 ) -> ResultadoIngreso:
-    hoy = hoy or datetime.now(timezone.utc).date()
+    ahora = datetime.now(timezone.utc)
+    hoy = hoy or ahora.date()
     movimiento = Movimiento(
         id=uuid4(),
         usuario_id=usuario_id,
@@ -39,7 +42,9 @@ def registrar_ingreso(
         categoria=None,
         descripcion=validar_descripcion(descripcion),
         fecha=validar_fecha(fecha or hoy, hoy),
-        creado_en=datetime.now(timezone.utc),
+        creado_en=ahora,
     )
-    repositorio.guardar(movimiento)
-    return ResultadoIngreso(movimiento, repartir(movimiento.monto))
+    reparto = repartir(movimiento.monto)
+    confirmaciones = proponer(movimiento, reparto, ahora)
+    repositorio.guardar_ingreso(movimiento, confirmaciones)
+    return ResultadoIngreso(movimiento, reparto, confirmaciones)

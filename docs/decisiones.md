@@ -30,3 +30,22 @@ cambiar; el informe solo habla de "requisitos mínimos" sin fijarlos.
 **Reglas.** Montos enteros en pesos, mayores que cero y hasta 1.000 millones. Fecha no futura. Descripción de 1 a 200 caracteres. Disponible negativo significa que la persona se pasó en esa categoría (no se bloquea el gasto). Todas las rutas exigen token y solo muestran los movimientos de su dueño; la tabla además rechaza montos no positivos.
 
 **Pendiente.** Confirmación del reparto por parte del usuario (25 % y 15 %), edición y borrado de movimientos, resumen por mes, zona horaria del usuario para la fecha por defecto (hoy usa la fecha UTC), y calcular el resumen en SQL cuando haya muchos movimientos.
+
+## D7 — Confirmación del reparto (HU-12 / RNF-06)
+
+**Decisión:** al registrar un ingreso, el sistema solo *propone* el reparto 50/25/15/10.
+Necesidades (50 %) y entretenimiento (10 %) se asignan de inmediato; inversión (25 %) y
+estabilidad (15 %) quedan como propuestas *pendientes* hasta que la persona las confirme o rechace.
+
+**Por qué:** el informe exige que ninguna parte de ahorro/inversión cuente sin consentimiento
+explícito. Así la app no "decide por" el usuario.
+
+**Reglas:**
+- Una propuesta solo se decide una vez (confirmar o rechazar); la segunda vez responde 409.
+- Rechazar deja el dinero "sin apartar" (se muestra como `rechazado` en el resumen).
+- Nadie puede ver ni decidir propuestas ajenas (responde 404, no 403, para no revelar que existen).
+- La actualización es atómica (`UPDATE ... WHERE estado='pendiente'`), así dos peticiones
+  simultáneas no pueden decidir la misma propuesta.
+
+**Pendiente:** poder revisar una decisión, y editar/borrar movimientos. Cambiar el esquema de la
+base a mano no escala: más adelante conviene Alembic (migraciones).

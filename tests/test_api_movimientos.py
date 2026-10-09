@@ -10,6 +10,7 @@ from app.adaptadores.api.dependencias import obtener_hasheador, obtener_reposito
 from app.adaptadores.api.dependencias_auth import obtener_emisor_tokens
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
 from app.adaptadores.api.rutas_auth import router as router_auth
+from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_usuarios import router as router_usuarios
 from app.infraestructura.base_de_datos import crear_fabrica_sesiones, crear_tablas
@@ -44,6 +45,7 @@ def cliente():
     app.include_router(router_usuarios)
     app.include_router(router_auth)
     app.include_router(router_movimientos)
+    app.include_router(router_confirmaciones)
     app.dependency_overrides[obtener_repositorio_usuarios] = usuarios_de_prueba
     app.dependency_overrides[obtener_repositorio_movimientos] = movimientos_de_prueba
     app.dependency_overrides[obtener_hasheador] = lambda: HasheadorBcrypt(costo=4)
@@ -62,6 +64,11 @@ def entrar(cliente, email="ana@correo.cl"):
 INGRESO = {"monto": 100_000, "descripcion": "Sueldo", "fecha": "2026-10-01"}
 
 
+def lineas(cliente, cabecera):
+    resumen = cliente.get("/resumen", headers=cabecera).json()
+    return {linea["categoria"]: linea for linea in resumen["categorias"]}
+
+
 def test_las_rutas_exigen_token(cliente):
     assert cliente.post("/ingresos", json=INGRESO).status_code == 401
     assert cliente.post("/gastos", json=INGRESO).status_code == 401
@@ -69,7 +76,7 @@ def test_las_rutas_exigen_token(cliente):
     assert cliente.get("/resumen").status_code == 401
 
 
-def test_ingreso_devuelve_201_con_el_reparto(cliente):
+def test_ingreso_devuelve_201_con_la_propuesta_de_reparto(cliente):
     cabecera = entrar(cliente)
     respuesta = cliente.post("/ingresos", json=INGRESO, headers=cabecera)
     assert respuesta.status_code == 201
@@ -81,6 +88,10 @@ def test_ingreso_devuelve_201_con_el_reparto(cliente):
         "estabilidad": 15_000,
         "entretenimiento": 10_000,
     }
+    pendientes = {c["categoria"]: c for c in cuerpo["por_confirmar"]}
+    assert set(pendientes) == {"inversion", "estabilidad"}
+    assert pendientes["inversion"]["monto"] == 25_000
+    assert pendientes["inversion"]["estado"] == "pendiente"
 
 
 def test_ingreso_sin_fecha_usa_hoy(cliente):
@@ -118,7 +129,7 @@ def test_gasto_con_categoria_inexistente_da_422(cliente):
     assert cliente.post("/gastos", json=datos, headers=cabecera).status_code == 422
 
 
-def test_resumen_refleja_ingresos_y_gastos(cliente):
+def test_resumen_antes_de_confirmar_deja_inversion_y_estabilidad_por_confirmar(cliente):
     cabecera = entrar(cliente)
     cliente.post("/ingresos", json=INGRESO, headers=cabecera)
     gasto = {"monto": 12_000, "categoria": "entretenimiento", "descripcion": "Salida"}
@@ -126,15 +137,18 @@ def test_resumen_refleja_ingresos_y_gastos(cliente):
     resumen = cliente.get("/resumen", headers=cabecera).json()
     assert resumen["ingresos_total"] == 100_000
     assert resumen["gastos_total"] == 12_000
-    por_categoria = {linea["categoria"]: linea for linea in resumen["categorias"]}
     assert [linea["categoria"] for linea in resumen["categorias"]] == [
         "necesidades",
         "inversion",
         "estabilidad",
         "entretenimiento",
     ]
+    por_categoria = lineas(cliente, cabecera)
     assert por_categoria["entretenimiento"]["disponible"] == -2_000
     assert por_categoria["necesidades"]["disponible"] == 50_000
+    assert por_categoria["inversion"]["asignado"] == 0
+    assert por_categoria["inversion"]["por_confirmar"] == 25_000
+    assert por_categoria["estabilidad"]["por_confirmar"] == 15_000
 
 
 def test_movimientos_lista_el_mas_reciente_primero(cliente):
