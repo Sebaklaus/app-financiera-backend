@@ -4,18 +4,20 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias_auth import obtener_usuario_actual_id
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
 from app.adaptadores.api.rutas_confirmaciones import RespuestaConfirmacion, a_respuesta
+from app.casos_de_uso.editar_movimiento import editar_movimiento
+from app.casos_de_uso.eliminar_movimiento import eliminar_movimiento
 from app.casos_de_uso.obtener_resumen import obtener_resumen
 from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.casos_de_uso.registrar_gasto import registrar_gasto
 from app.casos_de_uso.registrar_ingreso import registrar_ingreso
 from app.dominio.categorias import Categoria
-from app.dominio.errores import MovimientoInvalido
+from app.dominio.errores import EdicionNoPermitida, MovimientoInvalido, MovimientoNoEncontrado
 from app.dominio.movimiento import Movimiento
 
 router = APIRouter()
@@ -77,6 +79,20 @@ class RespuestaMovimiento(BaseModel):
     categoria: Categoria | None
     descripcion: str
     fecha: date
+
+
+class SolicitudEdicion(BaseModel):
+    """Solo se cambia lo que envíes; lo que omitas queda igual."""
+
+    monto: Monto | None = None
+    categoria: Categoria | None = None  # solo para gastos
+    descripcion: Descripcion | None = None
+    fecha: date | None = None
+
+
+class RespuestaEdicion(RespuestaMovimiento):
+    # Propuestas de un ingreso que siguen esperando tu decisión (vacío en los gastos).
+    por_confirmar: list[RespuestaConfirmacion] = []
 
 
 class RespuestaLinea(BaseModel):
@@ -177,6 +193,63 @@ def get_movimientos(
 ) -> list[RespuestaMovimiento]:
     """Tus ingresos y gastos, el más reciente primero. Nunca los de otra persona."""
     return [_a_respuesta(m) for m in repositorio.listar_por_usuario(usuario_id)]
+
+
+@router.patch(
+    "/movimientos/{movimiento_id}",
+    response_model=RespuestaEdicion,
+    responses={
+        **_RESPUESTAS_PROTEGIDAS,
+        404: {"description": "No existe ese movimiento (o es de otra persona)"},
+        409: {"description": "Ese ingreso ya tiene partes decididas: no se puede cambiar su monto"},
+    },
+)
+def patch_movimiento(
+    movimiento_id: UUID,
+    solicitud: SolicitudEdicion,
+    usuario_id: UsuarioActual,
+    repositorio: Repositorio,
+) -> RespuestaEdicion:
+    """Corrige un movimiento. Si cambias el monto de un ingreso, se vuelve a proponer su reparto."""
+    try:
+        resultado = editar_movimiento(
+            usuario_id,
+            movimiento_id,
+            repositorio,
+            monto=solicitud.monto,
+            categoria=solicitud.categoria,
+            descripcion=solicitud.descripcion,
+            fecha=solicitud.fecha,
+        )
+    except MovimientoNoEncontrado as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except EdicionNoPermitida as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except MovimientoInvalido as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    base = _a_respuesta(resultado.movimiento)
+    return RespuestaEdicion(
+        **base.model_dump(), por_confirmar=[a_respuesta(c) for c in resultado.pendientes]
+    )
+
+
+@router.delete(
+    "/movimientos/{movimiento_id}",
+    status_code=204,
+    responses={
+        401: _RESPUESTAS_PROTEGIDAS[401],
+        404: {"description": "No existe ese movimiento (o es de otra persona)"},
+    },
+)
+def delete_movimiento(
+    movimiento_id: UUID, usuario_id: UsuarioActual, repositorio: Repositorio
+) -> Response:
+    """Borra un movimiento tuyo. Si es un ingreso, se borran también sus propuestas."""
+    try:
+        eliminar_movimiento(usuario_id, movimiento_id, repositorio)
+    except MovimientoNoEncontrado as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return Response(status_code=204)
 
 
 @router.get(

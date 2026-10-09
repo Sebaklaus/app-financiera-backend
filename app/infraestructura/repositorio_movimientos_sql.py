@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Uuid,
+    delete,
     select,
     update,
 )
@@ -97,6 +98,19 @@ def _fila_de_movimiento(movimiento: Movimiento) -> MovimientoTabla:
     )
 
 
+def _fila_de_confirmacion(c: Confirmacion) -> ConfirmacionTabla:
+    return ConfirmacionTabla(
+        id=c.id,
+        usuario_id=c.usuario_id,
+        ingreso_id=c.ingreso_id,
+        categoria=c.categoria.value,
+        monto=c.monto,
+        estado=c.estado.value,
+        creado_en=c.creado_en,
+        decidido_en=c.decidido_en,
+    )
+
+
 class RepositorioMovimientosSQL:
     def __init__(self, sesion: Session) -> None:
         self._sesion = sesion
@@ -117,18 +131,7 @@ class RepositorioMovimientosSQL:
         # flush: escribe primero el ingreso, porque las propuestas apuntan a él.
         self._sesion.flush()
         for c in confirmaciones:
-            self._sesion.add(
-                ConfirmacionTabla(
-                    id=c.id,
-                    usuario_id=c.usuario_id,
-                    ingreso_id=c.ingreso_id,
-                    categoria=c.categoria.value,
-                    monto=c.monto,
-                    estado=c.estado.value,
-                    creado_en=c.creado_en,
-                    decidido_en=c.decidido_en,
-                )
-            )
+            self._sesion.add(_fila_de_confirmacion(c))
         # Un solo commit: o se guardan el ingreso y sus propuestas, o no se guarda nada.
         self._confirmar_cambios()
 
@@ -171,3 +174,54 @@ class RepositorioMovimientosSQL:
             self._sesion.rollback()
             raise ConfirmacionYaDecidida("Esta propuesta ya fue decidida")
         self._confirmar_cambios()
+
+    def buscar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> Movimiento | None:
+        consulta = select(MovimientoTabla).where(
+            MovimientoTabla.id == movimiento_id,
+            MovimientoTabla.usuario_id == usuario_id,
+        )
+        fila = self._sesion.scalar(consulta)
+        return None if fila is None else _movimiento_a_dominio(fila)
+
+    def actualizar_movimiento(
+        self, movimiento: Movimiento, propuestas: list[Confirmacion] | None = None
+    ) -> None:
+        self._sesion.execute(
+            update(MovimientoTabla)
+            .where(
+                MovimientoTabla.id == movimiento.id,
+                MovimientoTabla.usuario_id == movimiento.usuario_id,
+            )
+            .values(
+                monto=movimiento.monto,
+                categoria=None if movimiento.categoria is None else movimiento.categoria.value,
+                descripcion=movimiento.descripcion,
+                fecha=movimiento.fecha,
+            )
+        )
+        if propuestas is not None:
+            # Solo se reemplazan las pendientes: las ya decididas jamás se tocan.
+            self._sesion.execute(
+                delete(ConfirmacionTabla).where(
+                    ConfirmacionTabla.ingreso_id == movimiento.id,
+                    ConfirmacionTabla.estado == EstadoConfirmacion.PENDIENTE.value,
+                )
+            )
+            for c in propuestas:
+                self._sesion.add(_fila_de_confirmacion(c))
+        self._confirmar_cambios()
+
+    def eliminar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> bool:
+        if self.buscar_movimiento(usuario_id, movimiento_id) is None:
+            return False
+        # Primero las propuestas (apuntan al ingreso), después el movimiento.
+        self._sesion.execute(
+            delete(ConfirmacionTabla).where(ConfirmacionTabla.ingreso_id == movimiento_id)
+        )
+        self._sesion.execute(
+            delete(MovimientoTabla).where(
+                MovimientoTabla.id == movimiento_id, MovimientoTabla.usuario_id == usuario_id
+            )
+        )
+        self._confirmar_cambios()
+        return True

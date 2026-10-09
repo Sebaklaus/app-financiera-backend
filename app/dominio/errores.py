@@ -35,3 +35,11 @@ class ConfirmacionNoEncontrada(ErrorDeDominio):
 
 class ConfirmacionYaDecidida(ErrorDeDominio):
     """La propuesta ya fue confirmada o rechazada; una decisión no se repite."""
+
+
+class MovimientoNoEncontrado(ErrorDeDominio):
+    """No existe ese movimiento, o pertenece a otra persona (no se distingue a propósito)."""
+
+
+class EdicionNoPermitida(ErrorDeDominio):
+    """El cambio contradice decisiones ya tomadas (p. ej. el monto de un ingreso repartido)."""

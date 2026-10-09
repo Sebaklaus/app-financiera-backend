@@ -49,3 +49,24 @@ explícito. Así la app no "decide por" el usuario.
 
 **Pendiente:** poder revisar una decisión, y editar/borrar movimientos. Cambiar el esquema de la
 base a mano no escala: más adelante conviene Alembic (migraciones).
+
+## D8 — Editar y borrar movimientos
+
+**Decisión:** se puede corregir (`PATCH /movimientos/{id}`) y borrar (`DELETE /movimientos/{id}`)
+cualquier ingreso o gasto propio. Quien no es dueño recibe 404 (igual que si no existiera).
+
+**Reglas:**
+- Se cambia solo lo que se envía (monto, categoría, descripción, fecha); se validan igual que al crear.
+- Un ingreso no tiene categoría.
+- Gastos: se editan y borran libremente; el resumen se recalcula solo.
+- Ingresos: texto y fecha siempre se pueden corregir. El **monto** solo si ninguna propuesta
+  (25 % / 15 %) fue decidida; entonces se vuelve a proponer el reparto con el monto nuevo.
+  Si ya hay una decisión, responde 409: cambiar el monto movería dinero que la persona ya
+  confirmó o rechazó. La salida es borrar el ingreso y registrarlo de nuevo.
+- Borrar un ingreso borra también sus propuestas, decididas o no.
+
+**Por qué:** respeta la regla de que nada se aplica sin consentimiento (RNF-06) y evita
+que el historial contradiga decisiones ya tomadas.
+
+**Pendiente:** el borrado es definitivo (sin papelera ni historial de cambios). Para
+auditoría futura convendría un registro de cambios (ley 21.719: derechos de rectificación y supresión).

@@ -39,3 +39,31 @@ class RepositorioEnMemoria:
         if actual.estado is not EstadoConfirmacion.PENDIENTE:
             raise ConfirmacionYaDecidida("Esta propuesta ya fue decidida")
         self.confirmaciones[confirmacion.id] = confirmacion
+
+    def buscar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> Movimiento | None:
+        for m in self.movimientos:
+            if m.id == movimiento_id and m.usuario_id == usuario_id:
+                return m
+        return None
+
+    def actualizar_movimiento(
+        self, movimiento: Movimiento, propuestas: list[Confirmacion] | None = None
+    ) -> None:
+        self.movimientos = [movimiento if m.id == movimiento.id else m for m in self.movimientos]
+        if propuestas is not None:
+            self.confirmaciones = {
+                k: c
+                for k, c in self.confirmaciones.items()
+                if not (c.ingreso_id == movimiento.id and c.estado is EstadoConfirmacion.PENDIENTE)
+            }
+            for c in propuestas:
+                self.confirmaciones[c.id] = c
+
+    def eliminar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> bool:
+        if self.buscar_movimiento(usuario_id, movimiento_id) is None:
+            return False
+        self.movimientos = [m for m in self.movimientos if m.id != movimiento_id]
+        self.confirmaciones = {
+            k: c for k, c in self.confirmaciones.items() if c.ingreso_id != movimiento_id
+        }
+        return True

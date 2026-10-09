@@ -60,3 +60,20 @@ class RepositorioMovimientos(Protocol):
     def actualizar_confirmacion(self, confirmacion: Confirmacion) -> None:
         """Guarda la decisión. Lanza ConfirmacionYaDecidida si ya estaba decidida."""
         ...
+
+    def buscar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> Movimiento | None:
+        """None si no existe o si pertenece a otra persona."""
+        ...
+
+    def actualizar_movimiento(
+        self, movimiento: Movimiento, propuestas: list[Confirmacion] | None = None
+    ) -> None:
+        """Guarda los cambios. Si vienen `propuestas`, reemplazan a las pendientes del ingreso.
+
+        Todo en una sola operación: o se guarda todo o nada.
+        """
+        ...
+
+    def eliminar_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> bool:
+        """Borra el movimiento (y las propuestas de un ingreso). False si no era de esa persona."""
+        ...

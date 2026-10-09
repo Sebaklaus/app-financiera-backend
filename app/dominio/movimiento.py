@@ -1,6 +1,6 @@
 """Ingresos y gastos (HU-28) y sus reglas. Dominio puro: sin FastAPI ni base de datos."""
 
-from dataclasses import astuple, dataclass
+from dataclasses import astuple, dataclass, replace
 from datetime import date, datetime
 from enum import Enum
 from uuid import UUID
@@ -70,3 +70,30 @@ def repartir(monto: int) -> dict[Categoria, int]:
         Categoria.ESTABILIDAD: estabilidad,
         Categoria.ENTRETENIMIENTO: entretenimiento,
     }
+
+
+def editar(
+    movimiento: Movimiento,
+    hoy: date,
+    monto: int | None = None,
+    categoria: Categoria | None = None,
+    descripcion: str | None = None,
+    fecha: date | None = None,
+) -> Movimiento:
+    """Devuelve el movimiento con los cambios pedidos. Lo que viene como None no se toca."""
+    if monto is None and categoria is None and descripcion is None and fecha is None:
+        raise MovimientoInvalido("Indica al menos un dato para cambiar")
+    if categoria is not None:
+        if movimiento.tipo is TipoMovimiento.INGRESO:
+            raise MovimientoInvalido("Un ingreso no tiene categoría")
+        if not isinstance(categoria, Categoria):
+            raise MovimientoInvalido("La categoría no es válida")
+    return replace(
+        movimiento,
+        monto=movimiento.monto if monto is None else validar_monto(monto),
+        categoria=movimiento.categoria if categoria is None else categoria,
+        descripcion=(
+            movimiento.descripcion if descripcion is None else validar_descripcion(descripcion)
+        ),
+        fecha=movimiento.fecha if fecha is None else validar_fecha(fecha, hoy),
+    )
