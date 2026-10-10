@@ -1,10 +1,10 @@
 # Dependencias de la aplicación.
 # TODO: una vez instaladas, fijar versiones exactas con `pip freeze` para que
 # el contenedor y tu computador usen lo mismo.
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg[binary]
-bcrypt
-python-dotenv
-pyjwt[crypto]
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+sqlalchemy==2.1.3
+psycopg[binary]==3.3.6
+bcrypt==5.0.0
+python-dotenv==1.2.4
+pyjwt[crypto]==2.15.1

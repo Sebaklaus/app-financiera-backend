@@ -127,3 +127,21 @@ destruye nada. Mejora futura: limitar también por dirección IP y/o aumentar el
 de forma progresiva.
 
 **Pendiente:** limpiar periódicamente los registros viejos de `intentos_login`.
+
+## D12 — Versiones fijas en requirements.txt
+
+**Decisión:** cada librería directa de `requirements.txt` queda con su versión exacta
+(`fastapi==X.Y.Z`). Se genera con `python -m herramientas.fijar_versiones`, que lee las versiones
+instaladas en el entorno donde las pruebas pasan.
+
+**Por qué:** sin versiones fijas, `pip install` instala "lo último" de cada librería; si una
+publica un cambio incompatible, el proyecto puede romperse sin que nadie haya tocado el código
+(y Actions fallaría un día sin motivo aparente). Con versiones fijas, tu computador, GitHub
+Actions y el servidor usan lo mismo, y subir de versión es una decisión consciente.
+
+**Límite conocido:** solo se fijan las librerías directas, no las que ellas traen por dentro
+(transitivas). Para fijarlas también convendría una herramienta de bloqueo (pip-tools, uv o
+Poetry) o `pip freeze`. Queda como mejora futura.
+
+**Cómo actualizar:** `pip install -U <librería>`, correr `pytest` y `ruff check`, y si todo
+pasa, volver a ejecutar `python -m herramientas.fijar_versiones` y subir el cambio.
