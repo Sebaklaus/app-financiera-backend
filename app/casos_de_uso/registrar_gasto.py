@@ -13,6 +13,7 @@ from app.dominio.movimiento import (
     validar_fecha,
     validar_monto,
 )
+from app.dominio.reloj import hoy_en_chile
 
 
 def registrar_gasto(
@@ -26,7 +27,8 @@ def registrar_gasto(
 ) -> Movimiento:
     if not isinstance(categoria, Categoria):
         raise MovimientoInvalido("La categoría no es válida")
-    hoy = hoy or datetime.now(timezone.utc).date()
+    ahora = datetime.now(timezone.utc)
+    hoy = hoy or hoy_en_chile(ahora)
     movimiento = Movimiento(
         id=uuid4(),
         usuario_id=usuario_id,
@@ -35,7 +37,7 @@ def registrar_gasto(
         categoria=categoria,
         descripcion=validar_descripcion(descripcion),
         fecha=validar_fecha(fecha or hoy, hoy),
-        creado_en=datetime.now(timezone.utc),
+        creado_en=ahora,
     )
     repositorio.guardar(movimiento)
     return movimiento

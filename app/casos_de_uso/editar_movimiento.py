@@ -9,6 +9,7 @@ from app.dominio.categorias import Categoria
 from app.dominio.confirmacion import Confirmacion, EstadoConfirmacion, proponer
 from app.dominio.errores import EdicionNoPermitida, MovimientoNoEncontrado
 from app.dominio.movimiento import Movimiento, TipoMovimiento, editar, repartir
+from app.dominio.reloj import hoy_en_chile
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,7 @@ def editar_movimiento(
     ahora = datetime.now(timezone.utc)
     nuevo = editar(
         actual,
-        hoy or ahora.date(),
+        hoy or hoy_en_chile(ahora),
         monto=monto,
         categoria=categoria,
         descripcion=descripcion,

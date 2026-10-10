@@ -15,6 +15,7 @@ from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.dominio.categorias import Categoria
 from app.dominio.confirmacion import Confirmacion, Decision, EstadoConfirmacion
 from app.dominio.errores import ConfirmacionNoEncontrada, ConfirmacionYaDecidida
+from app.dominio.reloj import a_utc
 
 router = APIRouter()
 
@@ -45,8 +46,9 @@ def a_respuesta(confirmacion: Confirmacion) -> RespuestaConfirmacion:
         categoria=confirmacion.categoria,
         monto=confirmacion.monto,
         estado=confirmacion.estado,
-        creado_en=confirmacion.creado_en,
-        decidido_en=confirmacion.decidido_en,
+        # Siempre en UTC (termina en Z), venga de PostgreSQL o de SQLite.
+        creado_en=a_utc(confirmacion.creado_en),
+        decidido_en=(None if confirmacion.decidido_en is None else a_utc(confirmacion.decidido_en)),
     )
 
 

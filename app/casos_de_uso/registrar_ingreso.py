@@ -15,6 +15,7 @@ from app.dominio.movimiento import (
     validar_fecha,
     validar_monto,
 )
+from app.dominio.reloj import hoy_en_chile
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,7 @@ def registrar_ingreso(
     hoy: date | None = None,
 ) -> ResultadoIngreso:
     ahora = datetime.now(timezone.utc)
-    hoy = hoy or ahora.date()
+    hoy = hoy or hoy_en_chile(ahora)
     movimiento = Movimiento(
         id=uuid4(),
         usuario_id=usuario_id,

@@ -145,3 +145,21 @@ Poetry) o `pip freeze`. Queda como mejora futura.
 
 **Cómo actualizar:** `pip install -U <librería>`, correr `pytest` y `ruff check`, y si todo
 pasa, volver a ejecutar `python -m herramientas.fijar_versiones` y subir el cambio.
+
+## D13 — Zonas horarias: guardar en UTC, "hoy" según Chile
+
+**Decisión:** todas las horas (`creado_en`, `decidido_en`, vencimientos de tokens) se guardan y se
+entregan en UTC, y en la API siempre terminan en `Z`. En cambio, la **fecha por omisión** de un
+ingreso o gasto (cuando la persona no la indica) es la de **hoy en Chile** (`America/Santiago`).
+
+**Por qué:** antes la fecha por omisión usaba UTC. En Chile (UTC-3 en verano, UTC-4 en invierno), un
+gasto registrado a las 21:30 caía en el día siguiente, y con eso entraba al mes equivocado en el
+resumen mensual (D10). Guardar en UTC evita ambigüedades con el cambio de hora; usar el calendario
+de Chile para "hoy" respeta lo que la persona entiende por hoy.
+
+**Reglas:**
+- `app/dominio/reloj.py` es el único lugar que decide la fecha de hoy y convierte a UTC.
+- `ZoneInfo("America/Santiago")` aplica solo el cambio de hora de verano e invierno.
+- En Windows hace falta la librería `tzdata` (Windows no trae la base de zonas horarias).
+
+**Pendiente:** si la app se usa fuera de Chile, la zona debería ser un dato de cada usuario.
