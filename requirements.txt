@@ -9,3 +9,4 @@ bcrypt==5.0.0
 python-dotenv==1.2.4
 pyjwt[crypto]==2.15.1
 tzdata==2026.5
+alembic==1.20.0

@@ -2,13 +2,14 @@
 
 Uso, desde la raíz del proyecto y con el entorno virtual activado:
 
-    python -m herramientas.fijar_versiones
+    python -m herramientas.fijar_versiones                          (requirements.txt)
+    python -m herramientas.fijar_versiones requirements-dev.txt     (otro archivo)
 
 Lee tu requirements.txt, y a cada librería le pone la versión exacta que tienes instalada
 (por ejemplo, "fastapi" pasa a "fastapi==0.115.0"). Así todos instalan lo mismo, y una
 actualización inesperada de una librería no rompe el proyecto de un día para otro.
 
-Antes de escribir, guarda una copia en requirements.txt.antes.
+Antes de escribir, guarda una copia con el mismo nombre más ".antes".
 """
 
 import re
@@ -17,8 +18,7 @@ from collections.abc import Callable
 from importlib import metadata
 from pathlib import Path
 
-ARCHIVO = Path("requirements.txt")
-RESPALDO = Path("requirements.txt.antes")
+ARCHIVO_POR_DEFECTO = "requirements.txt"
 
 # nombre (con guiones o puntos), extras opcionales como [binary], y lo que venga después
 _LINEA = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*(.*)$")
@@ -59,9 +59,12 @@ def fijar(lineas: list[str], obtener_version: Callable[[str], str]) -> list[str]
     return resultado
 
 
-def main() -> int:
+def main(argumentos: list[str] | None = None) -> int:
+    argumentos = sys.argv[1:] if argumentos is None else argumentos
+    ARCHIVO = Path(argumentos[0] if argumentos else ARCHIVO_POR_DEFECTO)
+    RESPALDO = ARCHIVO.with_name(ARCHIVO.name + ".antes")
     if not ARCHIVO.exists():
-        print("No encuentro requirements.txt: ejecuta esto desde la raíz del proyecto.")
+        print(f"No encuentro {ARCHIVO}: ejecuta esto desde la raíz del proyecto.")
         return 1
     original = ARCHIVO.read_text(encoding="utf-8").splitlines()
     try:
