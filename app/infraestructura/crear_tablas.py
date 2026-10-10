@@ -6,6 +6,7 @@ Es seguro repetirlo: solo crea las tablas que falten.
 
 from app.configuracion import url_base_de_datos
 from app.infraestructura import (  # noqa: F401  (registran las tablas)
+    repositorio_intentos_sql,
     repositorio_movimientos_sql,
     repositorio_tokens_sql,
 )

@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from app.dominio.bloqueo import RegistroIntentos
 from app.dominio.confirmacion import Confirmacion
 from app.dominio.movimiento import Movimiento
 from app.dominio.token_refresco import TokenRefresco
@@ -91,3 +92,13 @@ class RepositorioTokensRefresco(Protocol):
         ...
 
     def revocar_todos_de_usuario(self, usuario_id: UUID, ahora: datetime) -> None: ...
+
+
+class RepositorioIntentosLogin(Protocol):
+    def obtener(self, clave: str) -> RegistroIntentos | None: ...
+
+    def guardar(self, registro: RegistroIntentos) -> None:
+        """Crea o reemplaza el registro de esa clave."""
+        ...
+
+    def borrar(self, clave: str) -> None: ...

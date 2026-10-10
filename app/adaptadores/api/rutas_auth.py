@@ -9,13 +9,15 @@ from pydantic import BaseModel, Field
 from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
 from app.adaptadores.api.dependencias_auth import (
     obtener_emisor_tokens,
+    obtener_repositorio_intentos,
     obtener_repositorio_tokens,
     obtener_usuario_actual_id,
 )
-from app.casos_de_uso.iniciar_sesion import iniciar_sesion
+from app.casos_de_uso.login_con_bloqueo import iniciar_sesion_con_bloqueo
 from app.casos_de_uso.puertos import (
     EmisorTokens,
     HasheadorContrasenas,
+    RepositorioIntentosLogin,
     RepositorioTokensRefresco,
     RepositorioUsuarios,
 )
@@ -26,7 +28,7 @@ from app.casos_de_uso.sesiones import (
     cerrar_todas_las_sesiones,
     renovar_sesion,
 )
-from app.dominio.errores import CredencialesInvalidas, TokenInvalido
+from app.dominio.errores import CredencialesInvalidas, DemasiadosIntentos, TokenInvalido
 
 router = APIRouter()
 
@@ -66,7 +68,10 @@ def _a_respuesta(par: ParDeTokens) -> RespuestaLogin:
 @router.post(
     "/login",
     response_model=RespuestaLogin,
-    responses={401: {"description": "Email o contraseña incorrectos"}},
+    responses={
+        401: {"description": "Email o contraseña incorrectos"},
+        429: {"description": "Demasiados intentos fallidos: espera antes de volver a intentar"},
+    },
 )
 def post_login(
     solicitud: SolicitudLogin,
@@ -74,9 +79,16 @@ def post_login(
     hasheador: Annotated[HasheadorContrasenas, Depends(obtener_hasheador)],
     emisor: Emisor,
     tokens: RepoTokens,
+    intentos: Annotated[RepositorioIntentosLogin, Depends(obtener_repositorio_intentos)],
 ) -> RespuestaLogin:
     try:
-        usuario = iniciar_sesion(solicitud.email, solicitud.contrasena, repositorio, hasheador)
+        usuario = iniciar_sesion_con_bloqueo(
+            solicitud.email, solicitud.contrasena, repositorio, hasheador, intentos
+        )
+    except DemasiadosIntentos as error:
+        raise HTTPException(
+            status_code=429, detail=str(error), headers={"Retry-After": str(error.segundos)}
+        ) from error
     except CredencialesInvalidas as error:
         raise HTTPException(status_code=401, detail=str(error), headers=_CABECERA_401) from error
     return _a_respuesta(abrir_sesion(usuario.id, tokens, emisor))

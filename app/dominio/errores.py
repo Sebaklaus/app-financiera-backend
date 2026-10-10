@@ -25,6 +25,18 @@ class TokenInvalido(ErrorDeDominio):
     """El token de acceso no sirve: está vencido, alterado o no es nuestro."""
 
 
+class DemasiadosIntentos(ErrorDeDominio):
+    """Se superó el máximo de contraseñas incorrectas: hay que esperar para volver a intentar."""
+
+    def __init__(self, segundos: int) -> None:
+        self.segundos = segundos
+        minutos = max(1, -(-segundos // 60))  # redondea hacia arriba
+        super().__init__(
+            f"Demasiados intentos fallidos. Intenta de nuevo en {minutos} "
+            f"minuto{'s' if minutos != 1 else ''}"
+        )
+
+
 class MovimientoInvalido(ErrorDeDominio):
     """Un ingreso o gasto con datos que no cumplen las reglas (monto, fecha, texto...)."""
 

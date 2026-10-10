@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
 
+from app.dominio.bloqueo import RegistroIntentos
 from app.dominio.confirmacion import Confirmacion, EstadoConfirmacion
 from app.dominio.errores import ConfirmacionYaDecidida
 from app.dominio.movimiento import Movimiento
@@ -105,3 +106,17 @@ class EmisorFalso:
 
     def leer(self, token: str) -> UUID:
         return UUID(token.removeprefix("acceso-"))
+
+
+class RepositorioIntentosEnMemoria:
+    def __init__(self) -> None:
+        self.registros: dict[str, RegistroIntentos] = {}
+
+    def obtener(self, clave: str) -> RegistroIntentos | None:
+        return self.registros.get(clave)
+
+    def guardar(self, registro: RegistroIntentos) -> None:
+        self.registros[registro.clave] = registro
+
+    def borrar(self, clave: str) -> None:
+        self.registros.pop(clave, None)
