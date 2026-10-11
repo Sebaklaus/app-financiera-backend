@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
@@ -13,6 +13,8 @@ from app.adaptadores.api.dependencias_auth import (
     obtener_repositorio_tokens,
     obtener_usuario_actual_id,
 )
+from app.adaptadores.api.ip_cliente import ip_del_cliente
+from app.casos_de_uso.limite_por_ip import registrar_fallo_ip, verificar_ip
 from app.casos_de_uso.login_con_bloqueo import iniciar_sesion_con_bloqueo
 from app.casos_de_uso.puertos import (
     EmisorTokens,
@@ -75,13 +77,16 @@ def _a_respuesta(par: ParDeTokens) -> RespuestaLogin:
 )
 def post_login(
     solicitud: SolicitudLogin,
+    request: Request,
     repositorio: Annotated[RepositorioUsuarios, Depends(obtener_repositorio_usuarios)],
     hasheador: Annotated[HasheadorContrasenas, Depends(obtener_hasheador)],
     emisor: Emisor,
     tokens: RepoTokens,
     intentos: Annotated[RepositorioIntentosLogin, Depends(obtener_repositorio_intentos)],
 ) -> RespuestaLogin:
+    ip = ip_del_cliente(request)
     try:
+        verificar_ip(ip, intentos)
         usuario = iniciar_sesion_con_bloqueo(
             solicitud.email, solicitud.contrasena, repositorio, hasheador, intentos
         )
@@ -90,6 +95,7 @@ def post_login(
             status_code=429, detail=str(error), headers={"Retry-After": str(error.segundos)}
         ) from error
     except CredencialesInvalidas as error:
+        registrar_fallo_ip(ip, intentos)
         raise HTTPException(status_code=401, detail=str(error), headers=_CABECERA_401) from error
     return _a_respuesta(abrir_sesion(usuario.id, tokens, emisor))
 

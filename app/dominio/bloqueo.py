@@ -42,7 +42,10 @@ def clave_de(email: str) -> str:
 
 
 def registrar_fallo(
-    previo: RegistroIntentos | None, clave: str, ahora: datetime
+    previo: RegistroIntentos | None,
+    clave: str,
+    ahora: datetime,
+    max_intentos: int = MAX_INTENTOS,
 ) -> RegistroIntentos:
     """Suma un fallo y devuelve el registro nuevo (bloqueado si llegó al máximo)."""
     if previo is None:
@@ -53,6 +56,6 @@ def registrar_fallo(
         nuevo = RegistroIntentos(clave, 1, ahora)  # los fallos viejos se olvidan
     else:
         nuevo = replace(previo, fallos=previo.fallos + 1)
-    if nuevo.fallos >= MAX_INTENTOS:
+    if nuevo.fallos >= max_intentos:
         nuevo = replace(nuevo, bloqueado_hasta=ahora + DURACION_BLOQUEO)
     return nuevo
