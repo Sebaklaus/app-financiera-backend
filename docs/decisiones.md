@@ -200,3 +200,24 @@ viaja en el encabezado `Authorization`. Las apps móviles no usan CORS; es para 
 (usuarios, sesiones activas, sesiones revocadas, cuentas bloqueadas ahora, cuentas con fallos
 recientes). Solo cuenta filas; nunca muestra emails, contraseñas ni tokens. Sirven como
 evidencia medible para el informe y como base de una futura alerta.
+
+## D16 — Derechos sobre los datos (Ley 21.719): ver, corregir y borrar
+
+**Decisión:** la persona puede, desde la API y con sesión iniciada:
+- `GET /yo/datos`: descargar todo lo que la app guarda de ella (acceso y portabilidad).
+- `PATCH /yo/email`: corregir su email (rectificación).
+- `POST /yo/contrasena`: cambiar su contraseña; se cierran todas sus sesiones.
+- `POST /yo/eliminar`: borrar su cuenta y todos sus datos (supresión), en una sola operación.
+
+**Pide la contraseña otra vez** en cambiar clave, cambiar email y eliminar: quien encuentre un
+teléfono desbloqueado no puede adueñarse ni destruir la cuenta. Esa verificación comparte el
+bloqueo del login (5 fallos → 429), así no sirve para adivinar claves.
+
+**Contraseña de confirmación incorrecta = 403, no 401.** El 401 queda reservado para "tu token no
+sirve"; así el front no confunde un error de contraseña con una sesión vencida y no cierra la
+sesión de la persona por error. Se usa `POST /yo/eliminar` (y no DELETE con cuerpo) porque algunos
+clientes HTTP no envían cuerpo en DELETE.
+
+**Pendiente:** consentimientos separados (HU-03) y perfil de riesgo en el registro; recuperar
+contraseña olvidada (necesita envío de correos); retención de datos tras borrar (hoy se borra
+todo de inmediato).

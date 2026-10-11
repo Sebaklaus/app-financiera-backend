@@ -4,6 +4,7 @@ from app.adaptadores.api.cors import aplicar_cors
 from app.adaptadores.api.rutas import router
 from app.adaptadores.api.rutas_auth import router as router_auth
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
+from app.adaptadores.api.rutas_cuenta import router as router_cuenta
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_usuarios import router as router_usuarios
 from app.configuracion import origenes_cors
@@ -15,3 +16,4 @@ app.include_router(router_usuarios)
 app.include_router(router_auth)
 app.include_router(router_movimientos)
 app.include_router(router_confirmaciones)
+app.include_router(router_cuenta)
