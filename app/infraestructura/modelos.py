@@ -8,6 +8,7 @@ from app.infraestructura import (  # noqa: F401  (registran las tablas)
     repositorio_consentimientos_sql,
     repositorio_intentos_sql,
     repositorio_movimientos_sql,
+    repositorio_recuperacion_sql,
     repositorio_tokens_sql,
 )
 from app.infraestructura.base_de_datos import Base, UsuarioTabla  # noqa: F401

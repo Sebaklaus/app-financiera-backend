@@ -243,3 +243,28 @@ incluye y `POST /yo/eliminar` las borra.
 **Pendiente (decisión de producto):** hoy el backend no bloquea operaciones si faltan los
 consentimientos; solo informa. Se puede exigirlos en el front, o bloquear en el backend.
 Los textos legales y su versión final los define el abogado.
+
+## D18 — Recuperar la contraseña olvidada
+
+**Flujo:** `POST /recuperacion/solicitar` (email) envía por correo un token de un solo uso que
+dura 30 minutos; `POST /recuperacion/restablecer` (token + contraseña nueva) cambia la clave.
+Estas dos rutas no llevan sesión, porque la persona no puede entrar.
+
+**Decisiones de seguridad:**
+- `solicitar` responde siempre 202 y lo mismo, exista o no la cuenta: no se revela qué emails
+  están registrados.
+- El token es aleatorio (48 bytes) y solo se guarda su huella SHA-256, como el token de refresco.
+- Solo sirve el último token enviado; sirve una sola vez (marcado atómico: si dos peticiones lo
+  usan a la vez, una gana) y vence a los 30 minutos.
+- Pedir otro correo antes de 1 minuto se ignora en silencio: evita usar la app para llenar de
+  correos el buzón de otra persona.
+- Una contraseña débil se rechaza ANTES de gastar el token, así puede corregirla y reintentar.
+- Al restablecer se cierran todas las sesiones y se quita el bloqueo del login.
+
+**Correo:** el envío está detrás del puerto `EnviadorCorreo`. Hoy solo existe `CORREO_MODO=consola`,
+que escribe el correo (con el token) en la terminal del servidor, solo para desarrollo. Antes de
+producción hay que contratar un proveedor (por ejemplo SendGrid o Amazon SES), escribir su
+adaptador y cambiar `CORREO_MODO`; el modo consola nunca debe usarse en producción.
+
+**Pendiente:** el enlace del correo (hoy es solo el token; falta decidir si abre la app con un
+enlace profundo o una página web), plantilla del correo en español y límite por IP (paquete 4).

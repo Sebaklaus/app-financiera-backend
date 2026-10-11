@@ -15,6 +15,7 @@ from app.infraestructura.repositorio_consentimientos_sql import (
 )
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
 from app.infraestructura.repositorio_movimientos_sql import ConfirmacionTabla, MovimientoTabla
+from app.infraestructura.repositorio_recuperacion_sql import TokenRecuperacionTabla
 from app.infraestructura.repositorio_tokens_sql import TokenRefrescoTabla
 from app.infraestructura.repositorio_usuarios_sql import RepositorioUsuariosSQL, _a_dominio
 
@@ -63,6 +64,11 @@ class RepositorioCuentaSQL(RepositorioUsuariosSQL):
             )
             self._sesion.execute(
                 delete(MovimientoTabla).where(MovimientoTabla.usuario_id == usuario_id)
+            )
+            self._sesion.execute(
+                delete(TokenRecuperacionTabla).where(
+                    TokenRecuperacionTabla.usuario_id == usuario_id
+                )
             )
             self._sesion.execute(
                 delete(TokenRefrescoTabla).where(TokenRefrescoTabla.usuario_id == usuario_id)
