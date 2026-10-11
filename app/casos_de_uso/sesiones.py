@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from app.casos_de_uso.puertos import EmisorTokens, RepositorioTokensRefresco
+from app.dominio.auditoria import ReusoDeToken
 from app.dominio.errores import TokenInvalido
 from app.dominio.token_refresco import calcular_huella, nuevo_token_refresco
 
@@ -47,13 +48,13 @@ def renovar_sesion(
         raise TokenInvalido(MENSAJE_SESION_INVALIDA)
     if guardado.revocado_en is not None:
         repositorio.revocar_todos_de_usuario(guardado.usuario_id, ahora)
-        raise TokenInvalido(MENSAJE_SESION_INVALIDA)
+        raise ReusoDeToken(MENSAJE_SESION_INVALIDA, guardado.usuario_id)
     if not guardado.esta_vigente(ahora):
         raise TokenInvalido(MENSAJE_SESION_INVALIDA)
     if not repositorio.revocar(guardado.id, ahora):
         # Dos peticiones usaron el mismo token a la vez: solo una puede ganar.
         repositorio.revocar_todos_de_usuario(guardado.usuario_id, ahora)
-        raise TokenInvalido(MENSAJE_SESION_INVALIDA)
+        raise ReusoDeToken(MENSAJE_SESION_INVALIDA, guardado.usuario_id)
     return abrir_sesion(guardado.usuario_id, repositorio, emisor, ahora)
 
 

@@ -6,12 +6,14 @@ Solo cuenta filas: no muestra emails, contraseñas ni tokens.
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.dominio.auditoria import TipoEvento
 from app.infraestructura.base_de_datos import UsuarioTabla
+from app.infraestructura.repositorio_eventos_sql import EventoSeguridadTabla
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
 from app.infraestructura.repositorio_tokens_sql import TokenRefrescoTabla
 
@@ -22,7 +24,7 @@ def calcular(sesion: Session, ahora: datetime | None = None) -> dict[str, int]:
     def contar(consulta) -> int:
         return int(sesion.scalar(consulta) or 0)
 
-    return {
+    metricas = {
         "usuarios_registrados": contar(select(func.count()).select_from(UsuarioTabla)),
         "sesiones_activas": contar(
             select(func.count())
@@ -45,6 +47,17 @@ def calcular(sesion: Session, ahora: datetime | None = None) -> dict[str, int]:
             .where(IntentosLoginTabla.fallos > 0)
         ),
     }
+    # Eventos de las últimas 24 horas, uno por tipo (en cero si no ocurrió ninguno).
+    por_tipo = dict(
+        sesion.execute(
+            select(EventoSeguridadTabla.tipo, func.count())
+            .where(EventoSeguridadTabla.creado_en > ahora - timedelta(hours=24))
+            .group_by(EventoSeguridadTabla.tipo)
+        ).all()
+    )
+    for tipo in TipoEvento:
+        metricas[f"eventos_24h_{tipo.value}"] = int(por_tipo.get(tipo.value, 0))
+    return metricas
 
 
 def main() -> int:

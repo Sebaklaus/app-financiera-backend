@@ -7,9 +7,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
 from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
+from app.adaptadores.api.dependencias_auth import obtener_repositorio_intentos
 from app.adaptadores.api.rutas_usuarios import router
 from app.infraestructura.base_de_datos import crear_fabrica_sesiones, crear_tablas
 from app.infraestructura.hasheador_bcrypt import HasheadorBcrypt
+from app.infraestructura.repositorio_intentos_sql import RepositorioIntentosSQL
 from app.infraestructura.repositorio_usuarios_sql import RepositorioUsuariosSQL
 
 
@@ -28,9 +30,14 @@ def cliente():
         with fabrica() as sesion:
             yield RepositorioUsuariosSQL(sesion)
 
+    def intentos_de_prueba():
+        with fabrica() as sesion:
+            yield RepositorioIntentosSQL(sesion)
+
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[obtener_repositorio_usuarios] = repositorio_de_prueba
+    app.dependency_overrides[obtener_repositorio_intentos] = intentos_de_prueba
     app.dependency_overrides[obtener_hasheador] = lambda: HasheadorBcrypt(costo=4)
     return TestClient(app)
 

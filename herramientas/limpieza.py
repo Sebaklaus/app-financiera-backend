@@ -10,6 +10,8 @@ Qué borra:
 - Tokens de recuperación de contraseña vencidos hace más de 1 día.
 - Registros de intentos de login que ya no bloquean ni cuentan: bloqueos terminados y fallos
   más viejos que la ventana de 15 minutos.
+- Eventos de la bitácora de seguridad con más de 1 año (se conservan 365 días para poder
+  investigar incidentes; después se borran por minimización de datos).
 """
 
 import json
@@ -20,11 +22,13 @@ from sqlalchemy import and_, delete, or_
 from sqlalchemy.orm import Session
 
 from app.dominio.bloqueo import VENTANA
+from app.infraestructura.repositorio_eventos_sql import EventoSeguridadTabla
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
 from app.infraestructura.repositorio_recuperacion_sql import TokenRecuperacionTabla
 from app.infraestructura.repositorio_tokens_sql import TokenRefrescoTabla
 
 GRACIA = timedelta(days=1)
+RETENCION_EVENTOS = timedelta(days=365)
 
 
 def limpiar(sesion: Session, ahora: datetime | None = None) -> dict[str, int]:
@@ -48,6 +52,11 @@ def limpiar(sesion: Session, ahora: datetime | None = None) -> dict[str, int]:
                 )
             )
         ).rowcount
+        eventos = sesion.execute(
+            delete(EventoSeguridadTabla).where(
+                EventoSeguridadTabla.creado_en < ahora - RETENCION_EVENTOS
+            )
+        ).rowcount
         sesion.commit()
     except Exception:
         sesion.rollback()
@@ -56,6 +65,7 @@ def limpiar(sesion: Session, ahora: datetime | None = None) -> dict[str, int]:
         "tokens_refresco_borrados": tokens,
         "tokens_recuperacion_borrados": recuperacion,
         "intentos_login_borrados": intentos,
+        "eventos_seguridad_borrados": eventos,
     }
 
 

@@ -315,3 +315,31 @@ falla si alguna pide una contraseña o un token por la dirección (quedarían en
 
 **Pendiente:** registro de auditoría de eventos de seguridad; el modo `consola` del correo escribe
 el token en el registro y es solo para desarrollo.
+
+## D21 — Bitácora de eventos de seguridad (auditoría)
+
+**Decisión:** la app anota en la tabla `eventos_seguridad` qué ocurrió y cuándo: logins exitosos
+y fallidos, rechazos por bloqueo (de cuenta o de IP), reuso de token de refresco (señal de token
+robado), cierres de sesión masivos, confirmaciones de contraseña fallidas, cambios de clave y email,
+recuperación de contraseña y eliminación de cuenta (13 tipos en `TipoEvento`).
+
+**Qué NO se anota:** contraseñas, tokens ni textos escritos por la persona. La IP se guarda solo
+como huella (SHA-256), nunca en claro. Un login fallido no lleva usuario (no se sabe de quién es).
+
+**Si la bitácora falla, la operación de la persona sigue:** se deja un aviso en el registro del
+servidor. Anotar es importante, pero no más que dejar entrar a la gente.
+
+**Transparencia:** `GET /yo/actividad` muestra a cada persona sus últimos eventos de seguridad
+(inicios de sesión, cambios, etc.): si ve algo que no hizo, sabe que debe cambiar la clave.
+
+**Eliminación de cuenta (Ley 21.719):** los eventos se conservan SIN vínculo con la persona
+(`usuario_id` queda vacío; no es clave foránea a propósito). Sirven para investigar incidentes
+(Ley 21.663) aunque la cuenta ya no exista, y sin la IP ni el usuario no identifican a nadie.
+
+**Retención:** 365 días; después los borra `python -m herramientas.limpieza`.
+
+**Métricas:** `python -m herramientas.metricas_seguridad` ahora incluye `eventos_24h_<tipo>`,
+la cantidad de cada tipo de evento en las últimas 24 horas: base para alertas (por ejemplo,
+muchos `login_fallido` o cualquier `refresco_reutilizado`).
+
+**Pendiente:** alertas automáticas, y el procedimiento de reporte de incidentes (Ley 21.663).

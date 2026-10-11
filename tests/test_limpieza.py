@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.infraestructura.base_de_datos import UsuarioTabla
 from app.infraestructura.modelos import Base
+from app.infraestructura.repositorio_eventos_sql import EventoSeguridadTabla
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
 from app.infraestructura.repositorio_recuperacion_sql import TokenRecuperacionTabla
 from app.infraestructura.repositorio_tokens_sql import TokenRefrescoTabla
@@ -46,6 +47,12 @@ def _recuperacion(usuario_id, expira):
     )
 
 
+def _evento(creado_en):
+    return EventoSeguridadTabla(
+        id=uuid4(), tipo="login_fallido", usuario_id=None, ip_huella=None, creado_en=creado_en
+    )
+
+
 def test_base_vacia_no_borra_nada():
     with _sesion() as s:
         assert set(limpiar(s, AHORA).values()) == {0}
@@ -64,6 +71,8 @@ def test_borra_lo_vencido_y_conserva_lo_demas():
                 _recuperacion(u.id, AHORA - timedelta(days=2)),  # se borra
                 _recuperacion(u.id, AHORA + timedelta(minutes=10)),  # vigente: se conserva
                 IntentosLoginTabla(clave="viejo", fallos=2, primer_fallo=VIEJO),  # se borra
+                _evento(AHORA - timedelta(days=400)),  # más de un año: se borra
+                _evento(AHORA - timedelta(days=30)),  # reciente: se conserva
                 IntentosLoginTabla(clave="reciente", fallos=2, primer_fallo=AHORA),  # se conserva
                 IntentosLoginTabla(
                     clave="bloqueo-terminado",
@@ -85,7 +94,9 @@ def test_borra_lo_vencido_y_conserva_lo_demas():
             "tokens_refresco_borrados": 1,
             "tokens_recuperacion_borrados": 1,
             "intentos_login_borrados": 2,
+            "eventos_seguridad_borrados": 1,
         }
+        assert _contar(s, EventoSeguridadTabla) == 1
         assert _contar(s, TokenRefrescoTabla) == 2
         assert _contar(s, TokenRecuperacionTabla) == 1
         claves = set(s.scalars(select(IntentosLoginTabla.clave)))

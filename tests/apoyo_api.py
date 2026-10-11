@@ -10,7 +10,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
 from app.adaptadores.api.cabeceras_seguridad import aplicar_cabeceras_seguridad
-from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
+from app.adaptadores.api.dependencias import (
+    obtener_hasheador,
+    obtener_repositorio_usuarios,
+    obtener_sesion,
+)
+from app.adaptadores.api.dependencias_auditoria import obtener_repositorio_eventos
 from app.adaptadores.api.dependencias_auth import (
     obtener_emisor_tokens,
     obtener_repositorio_intentos,
@@ -23,6 +28,7 @@ from app.adaptadores.api.dependencias_recuperacion import (
     obtener_enviador_correo,
     obtener_repositorio_recuperacion,
 )
+from app.adaptadores.api.rutas_actividad import router as router_actividad
 from app.adaptadores.api.rutas_auth import router as router_auth
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
 from app.adaptadores.api.rutas_consentimientos import router as router_consentimientos
@@ -37,6 +43,7 @@ from app.infraestructura.generar_claves import generar_par
 from app.infraestructura.hasheador_bcrypt import HasheadorBcrypt
 from app.infraestructura.repositorio_consentimientos_sql import RepositorioConsentimientosSQL
 from app.infraestructura.repositorio_cuenta_sql import RepositorioCuentaSQL
+from app.infraestructura.repositorio_eventos_sql import RepositorioEventosSQL
 from app.infraestructura.repositorio_intentos_sql import RepositorioIntentosSQL
 from app.infraestructura.repositorio_movimientos_sql import RepositorioMovimientosSQL
 from app.infraestructura.repositorio_recuperacion_sql import RepositorioRecuperacionSQL
@@ -65,6 +72,10 @@ def crear_cliente() -> TestClient:
     crear_tablas(motor)
     fabrica = crear_fabrica_sesiones(motor)
 
+    def sesion_de_prueba():
+        with fabrica() as sesion:
+            yield sesion
+
     def usuarios_de_prueba():
         with fabrica() as sesion:
             yield RepositorioUsuariosSQL(sesion)
@@ -84,6 +95,10 @@ def crear_cliente() -> TestClient:
     def recuperacion_de_prueba():
         with fabrica() as sesion:
             yield RepositorioRecuperacionSQL(sesion)
+
+    def eventos_de_prueba():
+        with fabrica() as sesion:
+            yield RepositorioEventosSQL(sesion)
 
     def cuenta_de_prueba():
         with fabrica() as sesion:
@@ -105,13 +120,17 @@ def crear_cliente() -> TestClient:
         router_consentimientos,
         router_recuperacion,
         router_salud,
+        router_actividad,
     ):
         app.include_router(router)
+    # Cualquier ruta que pida la sesión directamente (por ejemplo /salud/listo) usa la de prueba.
+    app.dependency_overrides[obtener_sesion] = sesion_de_prueba
     app.dependency_overrides[obtener_repositorio_usuarios] = usuarios_de_prueba
     app.dependency_overrides[obtener_repositorio_movimientos] = movimientos_de_prueba
     app.dependency_overrides[obtener_repositorio_tokens] = tokens_de_prueba
     app.dependency_overrides[obtener_repositorio_intentos] = intentos_de_prueba
     app.dependency_overrides[obtener_repositorio_cuenta] = cuenta_de_prueba
+    app.dependency_overrides[obtener_repositorio_eventos] = eventos_de_prueba
     app.dependency_overrides[obtener_repositorio_recuperacion] = recuperacion_de_prueba
     app.dependency_overrides[obtener_enviador_correo] = lambda: espia
     app.dependency_overrides[obtener_repositorio_consentimientos] = consentimientos_de_prueba

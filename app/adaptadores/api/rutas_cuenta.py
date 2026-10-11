@@ -8,10 +8,11 @@ from datetime import date, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias import obtener_hasheador
+from app.adaptadores.api.dependencias_auditoria import obtener_repositorio_eventos
 from app.adaptadores.api.dependencias_auth import (
     obtener_repositorio_intentos,
     obtener_repositorio_tokens,
@@ -20,6 +21,8 @@ from app.adaptadores.api.dependencias_auth import (
 from app.adaptadores.api.dependencias_consentimientos import obtener_repositorio_consentimientos
 from app.adaptadores.api.dependencias_cuenta import obtener_repositorio_cuenta
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
+from app.adaptadores.api.ip_cliente import ip_del_cliente
+from app.casos_de_uso.auditoria import registrar_evento
 from app.casos_de_uso.cuenta import (
     cambiar_contrasena,
     cambiar_email,
@@ -32,8 +35,10 @@ from app.casos_de_uso.puertos import (
     RepositorioMovimientos,
     RepositorioTokensRefresco,
 )
+from app.casos_de_uso.puertos_auditoria import RepositorioEventos
 from app.casos_de_uso.puertos_consentimientos import RepositorioConsentimientos
 from app.casos_de_uso.puertos_cuenta import RepositorioCuenta
+from app.dominio.auditoria import TipoEvento
 from app.dominio.categorias import Categoria
 from app.dominio.confirmacion import EstadoConfirmacion
 from app.dominio.consentimiento import PerfilRiesgo, TipoConsentimiento
@@ -57,6 +62,7 @@ Consentimientos = Annotated[
 Movimientos = Annotated[RepositorioMovimientos, Depends(obtener_repositorio_movimientos)]
 Tokens = Annotated[RepositorioTokensRefresco, Depends(obtener_repositorio_tokens)]
 Intentos = Annotated[RepositorioIntentosLogin, Depends(obtener_repositorio_intentos)]
+Eventos = Annotated[RepositorioEventos, Depends(obtener_repositorio_eventos)]
 Hasheador = Annotated[HasheadorContrasenas, Depends(obtener_hasheador)]
 Clave = Annotated[str, Field(min_length=1, max_length=256)]
 
@@ -122,7 +128,12 @@ class RespuestaDatos(BaseModel):
     perfil_riesgo: PerfilRiesgo | None
 
 
-def _error_de_clave(error: Exception) -> HTTPException:
+def _error_de_clave(
+    error: Exception, eventos: RepositorioEventos, usuario_id: UUID, request: Request
+) -> HTTPException:
+    registrar_evento(
+        eventos, TipoEvento.REAUTENTICACION_FALLIDA, usuario_id, ip_del_cliente(request)
+    )
     if isinstance(error, DemasiadosIntentos):
         return HTTPException(429, str(error), headers={"Retry-After": str(error.segundos)})
     return HTTPException(403, "La contraseña no es correcta")
@@ -181,11 +192,13 @@ def get_datos(
 @router.post("/contrasena", status_code=204, responses=_RESPUESTAS)
 def post_cambiar_contrasena(
     solicitud: SolicitudCambioClave,
+    request: Request,
     usuario_id: UsuarioActual,
     cuentas: Cuenta,
     hasheador: Hasheador,
     intentos: Intentos,
     tokens: Tokens,
+    eventos: Eventos,
 ) -> Response:
     """Cambia tu contraseña y cierra todas tus sesiones: tendrás que entrar de nuevo."""
     try:
@@ -199,19 +212,22 @@ def post_cambiar_contrasena(
             tokens,
         )
     except (CredencialesInvalidas, DemasiadosIntentos) as error:
-        raise _error_de_clave(error) from error
+        raise _error_de_clave(error, eventos, usuario_id, request) from error
     except ContrasenaInvalida as error:
         raise HTTPException(422, str(error)) from error
+    registrar_evento(eventos, TipoEvento.CONTRASENA_CAMBIADA, usuario_id, ip_del_cliente(request))
     return Response(status_code=204)
 
 
 @router.patch("/email", response_model=RespuestaEmail, responses=_RESPUESTAS)
 def patch_cambiar_email(
     solicitud: SolicitudCambioEmail,
+    request: Request,
     usuario_id: UsuarioActual,
     cuentas: Cuenta,
     hasheador: Hasheador,
     intentos: Intentos,
+    eventos: Eventos,
 ) -> RespuestaEmail:
     """Corrige tu email (derecho de rectificación). Pide tu contraseña."""
     try:
@@ -219,25 +235,30 @@ def patch_cambiar_email(
             usuario_id, solicitud.contrasena, solicitud.email_nuevo, cuentas, hasheador, intentos
         )
     except (CredencialesInvalidas, DemasiadosIntentos) as error:
-        raise _error_de_clave(error) from error
+        raise _error_de_clave(error, eventos, usuario_id, request) from error
     except EmailInvalido as error:
         raise HTTPException(422, str(error)) from error
     except EmailYaRegistrado as error:
         raise HTTPException(409, str(error)) from error
+    registrar_evento(eventos, TipoEvento.EMAIL_CAMBIADO, usuario_id, ip_del_cliente(request))
     return RespuestaEmail(email=email)
 
 
 @router.post("/eliminar", status_code=204, responses=_RESPUESTAS)
 def post_eliminar_cuenta(
     solicitud: SolicitudEliminar,
+    request: Request,
     usuario_id: UsuarioActual,
     cuentas: Cuenta,
     hasheador: Hasheador,
     intentos: Intentos,
+    eventos: Eventos,
 ) -> Response:
     """Borra tu cuenta y TODOS tus datos (derecho de supresión). No se puede deshacer."""
     try:
         eliminar_cuenta(usuario_id, solicitud.contrasena, cuentas, hasheador, intentos)
     except (CredencialesInvalidas, DemasiadosIntentos) as error:
-        raise _error_de_clave(error) from error
+        raise _error_de_clave(error, eventos, usuario_id, request) from error
+    # La cuenta ya no existe: el evento se anota sin vínculo con la persona.
+    registrar_evento(eventos, TipoEvento.CUENTA_ELIMINADA, None, ip_del_cliente(request))
     return Response(status_code=204)

@@ -1,6 +1,7 @@
 """Casos de uso: pedir y usar el enlace para recuperar la contraseña."""
 
 from datetime import datetime, timezone
+from uuid import UUID
 
 from app.casos_de_uso.puertos import (
     HasheadorContrasenas,
@@ -24,22 +25,24 @@ def solicitar_recuperacion(
     recuperaciones: RepositorioRecuperacion,
     enviador: EnviadorCorreo,
     ahora: datetime | None = None,
-) -> None:
-    """No devuelve nada A PROPÓSITO: existan o no la cuenta, la respuesta es la misma.
+) -> UUID | None:
+    """Devuelve el id de la cuenta si se envió un correo (uso interno: la bitácora).
 
-    Si respondiera distinto, cualquiera podría averiguar qué emails tienen cuenta.
+    Hacia afuera la respuesta es siempre la misma, exista o no la cuenta: si respondiera
+    distinto, cualquiera podría averiguar qué emails tienen cuenta.
     """
     ahora = ahora or datetime.now(timezone.utc)
     usuario = cuentas.buscar_por_email(normalizar_email(email))
     if usuario is None:
-        return
+        return None
     ultimo = recuperaciones.ultimo_creado_en(usuario.id)
     if ultimo is not None and ahora - ultimo < ESPERA_ENTRE_SOLICITUDES:
-        return
+        return None
     recuperaciones.invalidar_pendientes(usuario.id, ahora)
     token, registro = nuevo_token_recuperacion(usuario.id, ahora)
     recuperaciones.guardar(registro)
     enviador.enviar_recuperacion(usuario.email, token)
+    return usuario.id
 
 
 def restablecer_contrasena(
@@ -51,7 +54,7 @@ def restablecer_contrasena(
     tokens: RepositorioTokensRefresco,
     intentos: RepositorioIntentosLogin,
     ahora: datetime | None = None,
-) -> None:
+) -> UUID:
     """Cambia la clave con el token del correo, cierra todas las sesiones y quita el bloqueo."""
     ahora = ahora or datetime.now(timezone.utc)
     registro = recuperaciones.buscar_por_huella(calcular_huella(token))
@@ -67,3 +70,4 @@ def restablecer_contrasena(
     cuentas.cambiar_hash(usuario.id, hasheador.hashear(contrasena_nueva))
     tokens.revocar_todos_de_usuario(usuario.id, ahora)
     intentos.borrar(clave_de(usuario.email))
+    return usuario.id

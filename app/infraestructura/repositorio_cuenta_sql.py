@@ -13,6 +13,7 @@ from app.infraestructura.repositorio_consentimientos_sql import (
     ConsentimientoTabla,
     PerfilRiesgoTabla,
 )
+from app.infraestructura.repositorio_eventos_sql import EventoSeguridadTabla
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
 from app.infraestructura.repositorio_movimientos_sql import ConfirmacionTabla, MovimientoTabla
 from app.infraestructura.repositorio_recuperacion_sql import TokenRecuperacionTabla
@@ -53,6 +54,12 @@ class RepositorioCuentaSQL(RepositorioUsuariosSQL):
     def eliminar_cuenta(self, usuario_id: UUID, clave_intentos: str) -> None:
         # Orden: primero lo que depende de otras tablas, al final el usuario.
         try:
+            # La bitácora de seguridad se conserva, pero ya sin vínculo con la persona.
+            self._sesion.execute(
+                update(EventoSeguridadTabla)
+                .where(EventoSeguridadTabla.usuario_id == usuario_id)
+                .values(usuario_id=None)
+            )
             self._sesion.execute(
                 delete(ConsentimientoTabla).where(ConsentimientoTabla.usuario_id == usuario_id)
             )
