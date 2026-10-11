@@ -188,3 +188,15 @@ la prueba falla y GitHub Actions lo avisa.
 
 **Pendiente:** ejecutar `alembic upgrade head` como parte del despliegue; revisar a mano las
 migraciones autogeneradas (Alembic no detecta todo, por ejemplo cambios de nombre de columna).
+
+## D15 — CORS por lista de invitados y métricas de seguridad
+
+**CORS:** el navegador solo deja que una página web llame a la API si la API la autoriza. Las
+direcciones autorizadas se escriben en `CORS_ORIGINS` (separadas por coma) en el `.env`. Vacío =
+nadie (por defecto); `*` está prohibido. No se usan cookies (`allow_credentials=False`): el token
+viaja en el encabezado `Authorization`. Las apps móviles no usan CORS; es para Flutter Web.
+
+**Métricas de seguridad:** `python -m herramientas.metricas_seguridad` entrega recuentos
+(usuarios, sesiones activas, sesiones revocadas, cuentas bloqueadas ahora, cuentas con fallos
+recientes). Solo cuenta filas; nunca muestra emails, contraseñas ni tokens. Sirven como
+evidencia medible para el informe y como base de una futura alerta.
