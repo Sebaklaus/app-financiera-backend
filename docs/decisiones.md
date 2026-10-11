@@ -221,3 +221,25 @@ clientes HTTP no envían cuerpo en DELETE.
 **Pendiente:** consentimientos separados (HU-03) y perfil de riesgo en el registro; recuperar
 contraseña olvidada (necesita envío de correos); retención de datos tras borrar (hoy se borra
 todo de inmediato).
+
+## D17 — Consentimientos separados y perfil de riesgo (HU-03)
+
+**Decisión:** tres consentimientos, cada uno con su propio interruptor y guardado por separado:
+`terminos_y_privacidad` y `datos_financieros` (obligatorios para usar la app) y `comunicaciones`
+(opcional). El perfil de riesgo (`conservador`, `moderado`, `arriesgado`) se declara aparte.
+
+**Historial que no se borra:** cada cambio agrega una fila con fecha y versión del texto aceptado
+(`VERSION_TEXTOS`); retirar un consentimiento agrega una fila nueva, no borra la anterior. Así se
+puede demostrar qué aceptó la persona y cuándo (Ley 21.719: consentimiento libre, informado y
+específico). Un obligatorio no se puede retirar (422); para eso se elimina la cuenta.
+
+**Cómo se usa:** el front, justo después del registro, llama `GET /yo/consentimientos`; si
+`pendientes` no está vacío, muestra los interruptores y envía `PUT /yo/consentimientos`. Luego
+`PUT /yo/perfil-riesgo`. `/registro` no cambió, así que nada existente se rompe.
+
+**Datos:** tablas `consentimientos` y `perfiles_riesgo` (migración 0002). `GET /yo/datos` las
+incluye y `POST /yo/eliminar` las borra.
+
+**Pendiente (decisión de producto):** hoy el backend no bloquea operaciones si faltan los
+consentimientos; solo informa. Se puede exigirlos en el front, o bloquear en el backend.
+Los textos legales y su versión final los define el abogado.

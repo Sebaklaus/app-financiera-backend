@@ -15,10 +15,12 @@ from app.adaptadores.api.dependencias_auth import (
     obtener_repositorio_intentos,
     obtener_repositorio_tokens,
 )
+from app.adaptadores.api.dependencias_consentimientos import obtener_repositorio_consentimientos
 from app.adaptadores.api.dependencias_cuenta import obtener_repositorio_cuenta
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
 from app.adaptadores.api.rutas_auth import router as router_auth
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
+from app.adaptadores.api.rutas_consentimientos import router as router_consentimientos
 from app.adaptadores.api.rutas_cuenta import router as router_cuenta
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_usuarios import router as router_usuarios
@@ -26,6 +28,7 @@ from app.infraestructura.base_de_datos import crear_fabrica_sesiones, crear_tabl
 from app.infraestructura.emisor_jwt import EmisorJWT
 from app.infraestructura.generar_claves import generar_par
 from app.infraestructura.hasheador_bcrypt import HasheadorBcrypt
+from app.infraestructura.repositorio_consentimientos_sql import RepositorioConsentimientosSQL
 from app.infraestructura.repositorio_cuenta_sql import RepositorioCuentaSQL
 from app.infraestructura.repositorio_intentos_sql import RepositorioIntentosSQL
 from app.infraestructura.repositorio_movimientos_sql import RepositorioMovimientosSQL
@@ -56,6 +59,10 @@ def crear_cliente() -> TestClient:
         with fabrica() as sesion:
             yield RepositorioTokensSQL(sesion)
 
+    def consentimientos_de_prueba():
+        with fabrica() as sesion:
+            yield RepositorioConsentimientosSQL(sesion)
+
     def cuenta_de_prueba():
         with fabrica() as sesion:
             yield RepositorioCuentaSQL(sesion)
@@ -71,6 +78,7 @@ def crear_cliente() -> TestClient:
         router_movimientos,
         router_confirmaciones,
         router_cuenta,
+        router_consentimientos,
     ):
         app.include_router(router)
     app.dependency_overrides[obtener_repositorio_usuarios] = usuarios_de_prueba
@@ -78,6 +86,7 @@ def crear_cliente() -> TestClient:
     app.dependency_overrides[obtener_repositorio_tokens] = tokens_de_prueba
     app.dependency_overrides[obtener_repositorio_intentos] = intentos_de_prueba
     app.dependency_overrides[obtener_repositorio_cuenta] = cuenta_de_prueba
+    app.dependency_overrides[obtener_repositorio_consentimientos] = consentimientos_de_prueba
     app.dependency_overrides[obtener_hasheador] = lambda: HasheadorBcrypt(costo=4)
     app.dependency_overrides[obtener_emisor_tokens] = lambda: EmisorJWT(PRIVADA, PUBLICA)
     return TestClient(app)

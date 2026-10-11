@@ -5,7 +5,7 @@ aunque la persona ya tenga sesión: así, quien encuentre un teléfono desbloque
 adueñarse ni destruir la cuenta. Esa verificación comparte el bloqueo por intentos del login.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -16,9 +16,11 @@ from app.casos_de_uso.puertos import (
     RepositorioMovimientos,
     RepositorioTokensRefresco,
 )
+from app.casos_de_uso.puertos_consentimientos import RepositorioConsentimientos
 from app.casos_de_uso.puertos_cuenta import RepositorioCuenta
 from app.dominio.bloqueo import clave_de
 from app.dominio.confirmacion import Confirmacion
+from app.dominio.consentimiento import Consentimiento, PerfilDeclarado
 from app.dominio.errores import ContrasenaInvalida, CredencialesInvalidas
 from app.dominio.movimiento import Movimiento
 from app.dominio.usuario import Usuario, validar_contrasena, validar_email
@@ -30,6 +32,8 @@ class DatosExportados:
     movimientos: list[Movimiento]
     confirmaciones: list[Confirmacion]
     exportado_en: datetime
+    consentimientos: list[Consentimiento] = field(default_factory=list)
+    perfil: PerfilDeclarado | None = None
 
 
 def _reautenticar(
@@ -54,6 +58,7 @@ def exportar_datos(
     cuentas: RepositorioCuenta,
     movimientos: RepositorioMovimientos,
     ahora: datetime | None = None,
+    consentimientos: RepositorioConsentimientos | None = None,
 ) -> DatosExportados:
     """Derecho de acceso y portabilidad: todo lo que la app guarda de la persona."""
     usuario = cuentas.buscar_por_id(usuario_id)
@@ -64,6 +69,10 @@ def exportar_datos(
         movimientos=movimientos.listar_por_usuario(usuario_id),
         confirmaciones=movimientos.listar_confirmaciones_por_usuario(usuario_id),
         exportado_en=ahora or datetime.now(timezone.utc),
+        consentimientos=(
+            [] if consentimientos is None else consentimientos.listar_consentimientos(usuario_id)
+        ),
+        perfil=None if consentimientos is None else consentimientos.obtener_perfil(usuario_id),
     )
 
 

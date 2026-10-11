@@ -17,6 +17,7 @@ from app.adaptadores.api.dependencias_auth import (
     obtener_repositorio_tokens,
     obtener_usuario_actual_id,
 )
+from app.adaptadores.api.dependencias_consentimientos import obtener_repositorio_consentimientos
 from app.adaptadores.api.dependencias_cuenta import obtener_repositorio_cuenta
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
 from app.casos_de_uso.cuenta import (
@@ -31,9 +32,11 @@ from app.casos_de_uso.puertos import (
     RepositorioMovimientos,
     RepositorioTokensRefresco,
 )
+from app.casos_de_uso.puertos_consentimientos import RepositorioConsentimientos
 from app.casos_de_uso.puertos_cuenta import RepositorioCuenta
 from app.dominio.categorias import Categoria
 from app.dominio.confirmacion import EstadoConfirmacion
+from app.dominio.consentimiento import PerfilRiesgo, TipoConsentimiento
 from app.dominio.errores import (
     ContrasenaInvalida,
     CredencialesInvalidas,
@@ -48,6 +51,9 @@ router = APIRouter(prefix="/yo")
 _CABECERA_401 = {"WWW-Authenticate": "Bearer"}
 UsuarioActual = Annotated[UUID, Depends(obtener_usuario_actual_id)]
 Cuenta = Annotated[RepositorioCuenta, Depends(obtener_repositorio_cuenta)]
+Consentimientos = Annotated[
+    RepositorioConsentimientos, Depends(obtener_repositorio_consentimientos)
+]
 Movimientos = Annotated[RepositorioMovimientos, Depends(obtener_repositorio_movimientos)]
 Tokens = Annotated[RepositorioTokensRefresco, Depends(obtener_repositorio_tokens)]
 Intentos = Annotated[RepositorioIntentosLogin, Depends(obtener_repositorio_intentos)]
@@ -98,6 +104,13 @@ class ConfirmacionExportada(BaseModel):
     decidido_en: datetime | None
 
 
+class ConsentimientoExportado(BaseModel):
+    tipo: TipoConsentimiento
+    otorgado: bool
+    version: str
+    fecha: datetime
+
+
 class RespuestaDatos(BaseModel):
     id: UUID
     email: str
@@ -105,6 +118,8 @@ class RespuestaDatos(BaseModel):
     exportado_en: datetime
     movimientos: list[MovimientoExportado]
     confirmaciones: list[ConfirmacionExportada]
+    consentimientos: list[ConsentimientoExportado]
+    perfil_riesgo: PerfilRiesgo | None
 
 
 def _error_de_clave(error: Exception) -> HTTPException:
@@ -114,10 +129,15 @@ def _error_de_clave(error: Exception) -> HTTPException:
 
 
 @router.get("/datos", response_model=RespuestaDatos, responses={401: _RESPUESTAS[401]})
-def get_datos(usuario_id: UsuarioActual, cuentas: Cuenta, movimientos: Movimientos):
+def get_datos(
+    usuario_id: UsuarioActual,
+    cuentas: Cuenta,
+    movimientos: Movimientos,
+    consentimientos: Consentimientos,
+):
     """Descarga todo lo que la app guarda de ti (derecho de acceso y portabilidad)."""
     try:
-        datos = exportar_datos(usuario_id, cuentas, movimientos)
+        datos = exportar_datos(usuario_id, cuentas, movimientos, consentimientos=consentimientos)
     except CredencialesInvalidas as error:
         raise HTTPException(401, "La cuenta ya no existe", headers=_CABECERA_401) from error
     return RespuestaDatos(
@@ -148,6 +168,13 @@ def get_datos(usuario_id: UsuarioActual, cuentas: Cuenta, movimientos: Movimient
             )
             for c in datos.confirmaciones
         ],
+        consentimientos=[
+            ConsentimientoExportado(
+                tipo=k.tipo, otorgado=k.otorgado, version=k.version, fecha=a_utc(k.creado_en)
+            )
+            for k in datos.consentimientos
+        ],
+        perfil_riesgo=None if datos.perfil is None else datos.perfil.perfil,
     )
 
 
