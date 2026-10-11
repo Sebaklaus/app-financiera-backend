@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
+from app.adaptadores.api.cabeceras_seguridad import aplicar_cabeceras_seguridad
 from app.adaptadores.api.dependencias import obtener_hasheador, obtener_repositorio_usuarios
 from app.adaptadores.api.dependencias_auth import (
     obtener_emisor_tokens,
@@ -28,6 +29,7 @@ from app.adaptadores.api.rutas_consentimientos import router as router_consentim
 from app.adaptadores.api.rutas_cuenta import router as router_cuenta
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_recuperacion import router as router_recuperacion
+from app.adaptadores.api.rutas_salud import router as router_salud
 from app.adaptadores.api.rutas_usuarios import router as router_usuarios
 from app.infraestructura.base_de_datos import crear_fabrica_sesiones, crear_tablas
 from app.infraestructura.emisor_jwt import EmisorJWT
@@ -93,6 +95,7 @@ def crear_cliente() -> TestClient:
 
     espia = EnviadorEspia()
     app = FastAPI()
+    aplicar_cabeceras_seguridad(app)
     for router in (
         router_usuarios,
         router_auth,
@@ -101,6 +104,7 @@ def crear_cliente() -> TestClient:
         router_cuenta,
         router_consentimientos,
         router_recuperacion,
+        router_salud,
     ):
         app.include_router(router)
     app.dependency_overrides[obtener_repositorio_usuarios] = usuarios_de_prueba

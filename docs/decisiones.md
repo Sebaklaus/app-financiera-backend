@@ -290,3 +290,28 @@ una vez al día al desplegar (por ejemplo, Cloud Scheduler). Cumple con minimiza
 (Ley 21.719).
 
 **Pendiente:** extender el límite por IP a `/recuperacion/solicitar` y `/registro`.
+
+## D20 — Endurecimiento: cabeceras, salud, límites por IP y revisión automática
+
+**Cabeceras de seguridad** en todas las respuestas (`nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy: no-referrer`, HSTS). Las respuestas de la API además llevan `Cache-Control:
+no-store` (datos financieros: que nadie guarde copias) y una política CSP cerrada. `/docs` y
+`/redoc` quedan sin estas dos últimas porque cargan scripts externos y se romperían.
+
+**`/salud/listo`:** comprueba que la app puede hablar con la base (`SELECT 1`); si no, 503 sin
+detalles. Cloud Run lo usará como sonda de arranque. `/salud` sigue indicando solo que el proceso vive.
+
+**Límites por IP ampliados:** además del login (30 fallos / 15 min), `/registro` (20 peticiones /
+15 min) y `/recuperacion/solicitar` (10 peticiones / 15 min) responden 429 con `Retry-After`. Frenan
+la creación de cuentas en masa y el uso de la app para llenar de correos el buzón de otras personas.
+
+**Revisión automática de seguridad** (`.github/workflows/seguridad.yml`): `pip-audit` busca
+librerías con vulnerabilidades conocidas y `bandit` busca errores de seguridad en nuestro código;
+corre en cada cambio y cada lunes. Si `pip-audit` falla por una librería vulnerable, se actualiza su
+versión en `requirements.txt`.
+
+**Secretos fuera de la URL:** `tests/test_secretos_fuera_de_la_url.py` recorre todas las rutas y
+falla si alguna pide una contraseña o un token por la dirección (quedarían en registros).
+
+**Pendiente:** registro de auditoría de eventos de seguridad; el modo `consola` del correo escribe
+el token en el registro y es solo para desarrollo.

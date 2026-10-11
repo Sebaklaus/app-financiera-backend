@@ -3,7 +3,7 @@ entrar. La seguridad está en el token de un solo uso que llega por correo."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias import obtener_hasheador
@@ -16,6 +16,12 @@ from app.adaptadores.api.dependencias_recuperacion import (
     obtener_enviador_correo,
     obtener_repositorio_recuperacion,
 )
+from app.adaptadores.api.ip_cliente import ip_del_cliente
+from app.casos_de_uso.limite_por_ip import (
+    ACCION_RECUPERACION,
+    MAX_RECUPERACIONES_POR_IP,
+    limitar_peticiones_ip,
+)
 from app.casos_de_uso.puertos import (
     HasheadorContrasenas,
     RepositorioIntentosLogin,
@@ -24,7 +30,7 @@ from app.casos_de_uso.puertos import (
 from app.casos_de_uso.puertos_cuenta import RepositorioCuenta
 from app.casos_de_uso.puertos_recuperacion import EnviadorCorreo, RepositorioRecuperacion
 from app.casos_de_uso.recuperar_contrasena import restablecer_contrasena, solicitar_recuperacion
-from app.dominio.errores import ContrasenaInvalida, TokenInvalido
+from app.dominio.errores import ContrasenaInvalida, DemasiadosIntentos, TokenInvalido
 
 router = APIRouter(prefix="/recuperacion")
 
@@ -44,14 +50,29 @@ class SolicitudRestablecer(BaseModel):
     contrasena_nueva: Annotated[str, Field(min_length=1, max_length=256)]
 
 
-@router.post("/solicitar", response_model=RespuestaSolicitud, status_code=202)
+@router.post(
+    "/solicitar",
+    response_model=RespuestaSolicitud,
+    status_code=202,
+    responses={429: {"description": "Demasiadas solicitudes desde esta dirección"}},
+)
 def post_solicitar(
     solicitud: SolicitudRecuperacion,
+    request: Request,
+    intentos: Annotated[RepositorioIntentosLogin, Depends(obtener_repositorio_intentos)],
     cuentas: Annotated[RepositorioCuenta, Depends(obtener_repositorio_cuenta)],
     recuperaciones: Annotated[RepositorioRecuperacion, Depends(obtener_repositorio_recuperacion)],
     enviador: Annotated[EnviadorCorreo, Depends(obtener_enviador_correo)],
 ) -> RespuestaSolicitud:
     """Pide el correo de recuperación. Siempre responde 202 y lo mismo, tenga cuenta o no."""
+    try:
+        limitar_peticiones_ip(
+            ip_del_cliente(request), ACCION_RECUPERACION, MAX_RECUPERACIONES_POR_IP, intentos
+        )
+    except DemasiadosIntentos as error:
+        raise HTTPException(
+            status_code=429, detail=str(error), headers={"Retry-After": str(error.segundos)}
+        ) from error
     solicitar_recuperacion(solicitud.email, cuentas, recuperaciones, enviador)
     return RespuestaSolicitud(mensaje=MENSAJE_SOLICITUD)
 

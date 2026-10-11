@@ -1,0 +1,20 @@
+name: Seguridad
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 12 * * 1" # cada lunes: aparecen vulnerabilidades nuevas aunque no cambiemos el código
+jobs:
+  seguridad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pip-audit bandit
+      # Librerías con vulnerabilidades conocidas (compara requirements.txt con bases públicas).
+      - run: pip-audit -r requirements.txt
+      # Errores de seguridad en NUESTRO código; -ll = solo severidad media o alta.
+      - run: bandit -r app herramientas -ll
