@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Financiera – Demostración</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1c2733;--mut:#5d6b7a;--line:#dfe5ec;--pri:#1f4e79;--pri2:#2f6fa8;--ok:#1d7a4d;--warn:#b45309;--err:#b3261e;
+--c1:#2f6fa8;--c2:#1d7a4d;--c3:#b45309;--c4:#7a4fb0}
+@media (prefers-color-scheme:dark){:root{--bg:#10151b;--card:#18202a;--ink:#e6edf4;--mut:#9aa9b8;--line:#2a3542;--pri:#5b9bd5;--pri2:#7db3e6;--ok:#4cc28a;--warn:#e0a24a;--err:#f08a82}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--pri);color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+header h1{font-size:18px;margin:0;font-weight:650}
+header small{opacity:.85;display:block;font-weight:400}
+.api{display:flex;gap:8px;align-items:center;font-size:13px}
+.api input{width:230px}
+.dot{width:10px;height:10px;border-radius:50%;background:#999;display:inline-block}
+.dot.ok{background:#4cc28a}.dot.no{background:#f08a82}
+main{max-width:1100px;margin:0 auto;padding:18px 16px 60px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card.wide{grid-column:1/-1}
+h2{font-size:16px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:13px;margin:0 0 12px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+button{padding:8px 14px;border:0;border-radius:8px;background:var(--pri);color:#fff;font:inherit;cursor:pointer;margin-top:10px}
+button.sec{background:transparent;color:var(--pri);border:1px solid var(--pri)}
+button.bad{background:var(--err);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:120px}
+.msg{margin-top:10px;font-size:13px;padding:8px 10px;border-radius:8px;display:none}
+.msg.ok{display:block;background:rgba(29,122,77,.12);color:var(--ok)}
+.msg.err{display:block;background:rgba(179,38,30,.12);color:var(--err)}
+.hide{display:none!important}
+.bar{display:flex;height:26px;border-radius:8px;overflow:hidden;margin:10px 0 6px}
+.bar span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;white-space:nowrap}
+.leg{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 14px;font-size:13px}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--bg);border:1px solid var(--line)}
+.pill.pendiente{color:var(--warn)}.pill.confirmada{color:var(--ok)}.pill.rechazada{color:var(--err)}
+.conf{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.conf .b button{margin:0 0 0 6px;padding:6px 10px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;overflow:auto;max-height:260px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--mut)}.kv dd{margin:0;word-break:break-all}
+.note{font-size:12px;color:var(--mut);margin-top:8px}
+.who{display:flex;align-items:center;gap:10px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>App Financiera <small>Demostración del backend funcionando · regla 50/25/15/10</small></h1>
+  <div class="api">
+    <span class="dot" id="dot"></span><span id="estado">sin conexión</span>
+    <input id="apiurl" value="http://127.0.0.1:8000" aria-label="Dirección de la API">
+    <button class="sec" id="btnApi" style="margin:0;color:#fff;border-color:#fff">Conectar</button>
+  </div>
+</header>
+
+<main>
+  <!-- CUENTA -->
+  <section class="card" id="cCuenta">
+    <h2>1. Cuenta</h2>
+    <p class="sub">Registro y acceso. La contraseña nunca se guarda: solo su huella (bcrypt).</p>
+    <div id="formAcceso">
+      <label for="email">Correo</label><input id="email" type="email" autocomplete="username" placeholder="nombre@correo.cl">
+      <label for="clave">Contraseña (mínimo 8, con al menos una letra)</label><input id="clave" type="password" autocomplete="current-password">
+      <div class="row"><button id="btnReg">Crear cuenta</button><button id="btnLogin" class="sec">Iniciar sesión</button></div>
+    </div>
+    <div id="sesion" class="hide">
+      <div class="who"><span class="pill confirmada">Sesión activa</span><span id="quien"></span></div>
+      <div class="row"><button class="sec" id="btnSalir">Cerrar sesión</button><button class="sec" id="btnSalirTodas">Cerrar en todos los dispositivos</button></div>
+    </div>
+    <div class="msg" id="mCuenta"></div>
+  </section>
+
+  <!-- CONSENTIMIENTOS -->
+  <section class="card" id="cCons">
+    <h2>2. Consentimientos y perfil</h2>
+    <p class="sub">Ley 21.719: cada consentimiento se pide por separado y queda con su versión y fecha.</p>
+    <label><input type="checkbox" id="c1" style="width:auto"> Términos y política de privacidad (obligatorio)</label>
+    <label><input type="checkbox" id="c2" style="width:auto"> Uso de mis datos financieros (obligatorio)</label>
+    <label><input type="checkbox" id="c3" style="width:auto"> Recibir comunicaciones (opcional)</label>
+    <label for="perfil">Perfil de riesgo</label>
+    <select id="perfil"><option value="conservador">Conservador</option><option value="moderado" selected>Moderado</option><option value="arriesgado">Arriesgado</option></select>
+    <button id="btnCons" disabled>Guardar</button>
+    <div class="msg" id="mCons"></div>
+    <div class="note" id="estCons"></div>
+  </section>
+
+  <!-- INGRESO -->
+  <section class="card" id="cIng">
+    <h2>3. Registrar un ingreso</h2>
+    <p class="sub">La app propone el reparto; el 25 % y el 15 % esperan tu decisión.</p>
+    <div class="row"><div><label for="iMonto">Monto (pesos)</label><input id="iMonto" type="number" min="1" step="1" value="1000000"></div>
+    <div><label for="iDesc">Descripción</label><input id="iDesc" value="Sueldo octubre"></div></div>
+    <button id="btnIng" disabled>Registrar ingreso</button>
+    <div class="msg" id="mIng"></div>
+    <div id="reparto" class="hide">
+      <div class="bar" id="barra"></div>
+      <div class="leg" id="leyenda"></div>
+    </div>
+  </section>
+
+  <!-- CONFIRMACIONES -->
+  <section class="card" id="cConf">
+    <h2>4. Confirmaciones pendientes</h2>
+    <p class="sub">El dinero nunca pasa por la app: tú decides si lo apartas para inversión y estabilidad.</p>
+    <div id="listaConf"><p class="note">Inicia sesión para ver tus confirmaciones.</p></div>
+    <div class="msg" id="mConf"></div>
+  </section>
+
+  <!-- GASTO -->
+  <section class="card" id="cGasto">
+    <h2>5. Registrar un gasto</h2>
+    <p class="sub">Se descuenta de la categoría elegida.</p>
+    <div class="row"><div><label for="gMonto">Monto</label><input id="gMonto" type="number" min="1" step="1" value="45000"></div>
+    <div><label for="gCat">Categoría</label><select id="gCat"><option value="necesidades">Necesidades</option><option value="entretenimiento">Entretenimiento</option><option value="estabilidad">Estabilidad</option><option value="inversion">Inversión</option></select></div></div>
+    <label for="gDesc">Descripción</label><input id="gDesc" value="Supermercado">
+    <button id="btnGasto" disabled>Registrar gasto</button>
+    <div class="msg" id="mGasto"></div>
+  </section>
+
+  <!-- RESUMEN -->
+  <section class="card wide" id="cRes">
+    <h2>6. Resumen por categoría</h2>
+    <p class="sub">Asignado = ya decidido por ti · Por confirmar = propuesto, esperando decisión · Rechazado = queda sin apartar.</p>
+    <div class="row" style="align-items:end;max-width:360px"><div><label for="mes">Mes (AAAA-MM, vacío = todo)</label><input id="mes" placeholder="2026-10"></div><button class="sec" id="btnRes" disabled>Actualizar</button></div>
+    <div id="resumen" style="margin-top:10px"></div>
+  </section>
+
+  <!-- MOVIMIENTOS -->
+  <section class="card wide" id="cMov">
+    <h2>7. Movimientos</h2>
+    <div id="movs"><p class="note">Sin datos.</p></div>
+    <div class="msg" id="mMov"></div>
+  </section>
+
+  <!-- DATOS -->
+  <section class="card wide" id="cDatos">
+    <h2>8. Qué datos guarda la app de ti</h2>
+    <p class="sub">Es la respuesta real de <code>GET /yo/datos</code> (derecho de acceso y portabilidad). No incluye la contraseña, ni siquiera su huella.</p>
+    <button id="btnDatos" disabled>Ver mis datos guardados</button>
+    <div id="datos" style="margin-top:12px"></div>
+  </section>
+
+  <!-- ACTIVIDAD -->
+  <section class="card wide" id="cAct">
+    <h2>9. Actividad de seguridad de mi cuenta</h2>
+    <p class="sub">Bitácora propia: inicios de sesión, fallos, cambios de clave. No guarda tu IP, solo una huella.</p>
+    <button id="btnAct" disabled>Ver mi actividad</button>
+    <div id="act" style="margin-top:12px"></div>
+  </section>
+
+  <!-- BANCO -->
+  <section class="card wide" id="cBanco">
+    <h2>10. Conectar mi banco (Fintoc, sandbox)</h2>
+    <p class="sub">Recorrido de los datos: banco de prueba → Fintoc → nuestra API (solo lectura; el enlace se guarda cifrado) → base de datos → reparto 50/25/15/10. El dinero no pasa por la app.</p>
+    <div class="row" style="align-items:end"><div style="flex:3"><label for="linkTok">link_token del enlace de prueba (Dashboard de Fintoc)</label><input id="linkTok" placeholder="link_..._token_..." autocomplete="off"></div>
+    <button id="btnBanco" disabled>Conectar banco</button><button class="sec" id="btnDesc" disabled>Desconectar</button></div>
+    <div class="msg" id="mBanco"></div>
+    <div id="cuentasBanco" style="margin-top:10px"></div>
+    <div id="movsBanco" style="margin-top:10px"></div>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const CLP=n=>'$'+Number(n).toLocaleString('es-CL');
+const NOM={necesidades:'Necesidades (50 %)',inversion:'Inversión (25 %)',estabilidad:'Estabilidad (15 %)',entretenimiento:'Entretenimiento (10 %)'};
+const COL={necesidades:'var(--c1)',inversion:'var(--c2)',estabilidad:'var(--c3)',entretenimiento:'var(--c4)'};
+const EVT={login_exitoso:'Inicio de sesión exitoso',login_fallido:'Intento de inicio de sesión fallido',login_rechazado_por_bloqueo:'Intento rechazado por bloqueo temporal',ip_bloqueada:'Dirección bloqueada temporalmente',refresco_reutilizado:'Se detectó reuso de una sesión',sesiones_cerradas:'Sesiones cerradas',reautenticacion_fallida:'Reautenticación fallida',contrasena_cambiada:'Contraseña cambiada',email_cambiado:'Correo cambiado',cuenta_eliminada:'Cuenta eliminada',recuperacion_solicitada:'Recuperación solicitada',recuperacion_completada:'Recuperación completada',recuperacion_fallida:'Recuperación fallida'};
+let base=$('apiurl').value, acceso=null, refresco=null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function aviso(id,txt,ok){const e=$(id);e.className='msg '+(ok?'ok':'err');e.textContent=txt}
+function limpiar(id){$(id).className='msg'}
+function detalle(d){if(!d)return'';if(typeof d.detail==='string')return d.detail;if(Array.isArray(d.detail))return d.detail.map(x=>x.msg).join('; ');return JSON.stringify(d)}
+async function api(m,ruta,cuerpo,auth=true,reintento=true){
+  const h={};if(cuerpo!==undefined)h['Content-Type']='application/json';
+  if(auth&&acceso)h['Authorization']='Bearer '+acceso;
+  let r;try{r=await fetch(base+ruta,{method:m,headers:h,body:cuerpo!==undefined?JSON.stringify(cuerpo):undefined})}
+  catch(e){throw new Error('No se pudo conectar con la API en '+base+'. ¿Está corriendo y permitido en CORS_ORIGINS?')}
+  if(r.status===401&&auth&&refresco&&reintento){if(await refrescar())return api(m,ruta,cuerpo,auth,false)}
+  if(r.status===204)return null;
+  let d=null;try{d=await r.json()}catch(e){}
+  if(!r.ok){const e=new Error(detalle(d)||('Error '+r.status));e.status=r.status;throw e}
+  return d;
+}
+async function refrescar(){try{const d=await api('POST','/refrescar',{refresh_token:refresco},false,false);acceso=d.access_token;refresco=d.refresh_token;return true}catch(e){cerrarLocal();return false}}
+function cerrarLocal(){acceso=refresco=null;marcar(false)}
+function marcar(on){
+  $('formAcceso').classList.toggle('hide',on);$('sesion').classList.toggle('hide',!on);
+  ['btnCons','btnIng','btnGasto','btnRes','btnDatos','btnAct','btnBanco','btnDesc'].forEach(i=>$(i).disabled=!on);
+  if(!on){$('listaConf').innerHTML='<p class="note">Inicia sesión para ver tus confirmaciones.</p>';$('resumen').innerHTML='';$('movs').innerHTML='<p class="note">Sin datos.</p>';$('datos').innerHTML='';$('act').innerHTML='';$('cuentasBanco').innerHTML='';$('movsBanco').innerHTML='';$('reparto').classList.add('hide');$('estCons').textContent=''}
+}
+async function conectar(){
+  base=$('apiurl').value.replace(/\/$/,'');
+  try{const r=await fetch(base+'/salud/listo');const d=await r.json();
+    $('dot').className='dot '+(r.ok?'ok':'no');$('estado').textContent=r.ok?'API y base de datos activas':'API sin base de datos'}
+  catch(e){$('dot').className='dot no';$('estado').textContent='sin conexión'}
+}
+async function entrar(){
+  const d=await api('POST','/login',{email:$('email').value.trim(),contrasena:$('clave').value},false);
+  acceso=d.access_token;refresco=d.refresh_token;marcar(true);
+  $('quien').textContent=$('email').value.trim();
+  await Promise.all([cargarCons(),cargarConf(),cargarMovs(),cargarResumen()]);
+}
+$('btnApi').onclick=conectar;
+$('btnReg').onclick=async()=>{limpiar('mCuenta');try{
+  const u=await api('POST','/registro',{email:$('email').value.trim(),contrasena:$('clave').value},false);
+  await entrar();aviso('mCuenta','Cuenta creada (id '+u.id.slice(0,8)+'…). Ahora acepta los consentimientos.',true)}catch(e){aviso('mCuenta',e.message,false)}};
+$('btnLogin').onclick=async()=>{limpiar('mCuenta');try{await entrar();aviso('mCuenta','Sesión iniciada.',true)}catch(e){aviso('mCuenta',e.status===401?'Credenciales inválidas.':e.status===429?'Demasiados intentos: espera unos minutos ('+e.message+').':e.message,false)}};
+$('btnSalir').onclick=async()=>{try{await api('POST','/logout',{refresh_token:refresco},false)}catch(e){}cerrarLocal();aviso('mCuenta','Sesión cerrada.',true)};
+$('btnSalirTodas').onclick=async()=>{try{await api('POST','/logout/todas')}catch(e){}cerrarLocal();aviso('mCuenta','Sesión cerrada en todos los dispositivos.',true)};
+async function cargarCons(){
+  try{const d=await api('GET','/yo/consentimientos');
+    const m=Object.fromEntries(d.consentimientos.map(c=>[c.tipo,c]));
+    $('c1').checked=m.terminos_y_privacidad?.otorgado||false;$('c2').checked=m.datos_financieros?.otorgado||false;$('c3').checked=m.comunicaciones?.otorgado||false;
+    $('estCons').textContent=d.pendientes.length?'Pendientes: '+d.pendientes.join(', '):'Versión de textos aceptada: '+d.version_textos;
+    const p=await api('GET','/yo/perfil-riesgo');if(p.perfil)$('perfil').value=p.perfil}catch(e){}
+}
+$('btnCons').onclick=async()=>{limpiar('mCons');try{
+  await api('PUT','/yo/consentimientos',{terminos_y_privacidad:$('c1').checked,datos_financieros:$('c2').checked,comunicaciones:$('c3').checked});
+  await api('PUT','/yo/perfil-riesgo',{perfil:$('perfil').value});await cargarCons();aviso('mCons','Guardado.',true)}catch(e){aviso('mCons',e.message,false)}};
+function pintarReparto(r,total){
+  const k=['necesidades','inversion','estabilidad','entretenimiento'];
+  $('barra').innerHTML=k.map(c=>`<span style="width:${r[c]/total*100}%;background:${COL[c]}" title="${NOM[c]}">${Math.round(r[c]/total*100)}%</span>`).join('');
+  $('leyenda').innerHTML=k.map(c=>`<div><i style="background:${COL[c]}"></i>${NOM[c].split(' (')[0]}: <b>${CLP(r[c])}</b></div>`).join('');
+  $('reparto').classList.remove('hide');
+}
+$('btnIng').onclick=async()=>{limpiar('mIng');try{
+  const d=await api('POST','/ingresos',{monto:parseInt($('iMonto').value,10),descripcion:$('iDesc').value});
+  pintarReparto(d.reparto,d.monto);aviso('mIng','Ingreso registrado. El 25 % y el 15 % esperan tu decisión (sección 4).',true);
+  await Promise.all([cargarConf(),cargarMovs(),cargarResumen()])}catch(e){aviso('mIng',e.message,false)}};
+async function cargarConf(){
+  try{const l=await api('GET','/confirmaciones/pendientes');
+    $('listaConf').innerHTML=l.length?l.map(c=>`<div class="conf"><div><b>${NOM[c.categoria]}</b><br><span class="note">${CLP(c.monto)} · propuesto ${new Date(c.creado_en).toLocaleString('es-CL')}</span></div><div class="b"><button data-i="${c.id}" data-d="confirmar">Confirmar</button><button class="sec" data-i="${c.id}" data-d="rechazar">Rechazar</button></div></div>`).join(''):'<p class="note">No tienes confirmaciones pendientes.</p>';
+    $('listaConf').querySelectorAll('button').forEach(b=>b.onclick=()=>decidir(b.dataset.i,b.dataset.d))}catch(e){}
+}
+async function decidir(id,d){limpiar('mConf');try{await api('POST','/confirmaciones/'+id+'/decision',{decision:d});aviso('mConf',d==='confirmar'?'Confirmado: ese monto queda asignado a la categoría.':'Rechazado: ese dinero queda sin apartar.',true);await Promise.all([cargarConf(),cargarResumen()])}catch(e){aviso('mConf',e.message,false)}}
+$('btnGasto').onclick=async()=>{limpiar('mGasto');try{
+  await api('POST','/gastos',{monto:parseInt($('gMonto').value,10),categoria:$('gCat').value,descripcion:$('gDesc').value});
+  aviso('mGasto','Gasto registrado.',true);await Promise.all([cargarMovs(),cargarResumen()])}catch(e){aviso('mGasto',e.message,false)}};
+async function cargarResumen(){
+  try{const m=$('mes').value.trim();const d=await api('GET','/resumen'+(m?'?mes='+encodeURIComponent(m):''));
+    $('resumen').innerHTML=`<p>Ingresos: <b>${CLP(d.ingresos_total)}</b> · Gastos: <b>${CLP(d.gastos_total)}</b></p><div style="overflow:auto"><table><tr><th>Categoría</th><th>Asignado</th><th>Gastado</th><th>Disponible</th><th>Por confirmar</th><th>Rechazado</th></tr>${d.categorias.map(c=>`<tr><td>${NOM[c.categoria]}</td><td>${CLP(c.asignado)}</td><td>${CLP(c.gastado)}</td><td>${CLP(c.disponible)}</td><td>${CLP(c.por_confirmar)}</td><td>${CLP(c.rechazado)}</td></tr>`).join('')}</table></div>`}
+  catch(e){$('resumen').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}
+}
+$('btnRes').onclick=cargarResumen;
+async function cargarMovs(){
+  try{const l=await api('GET','/movimientos');
+    $('movs').innerHTML=l.length?`<div style="overflow:auto"><table><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr>${l.map(m=>`<tr><td>${m.fecha}</td><td>${m.tipo}</td><td>${m.categoria||'—'}</td><td style="text-align:left">${esc(m.descripcion)}</td><td>${CLP(m.monto)}</td><td><button class="bad" style="margin:0;padding:3px 8px" data-i="${m.id}">Eliminar</button></td></tr>`).join('')}</table></div>`:'<p class="note">Aún no hay movimientos.</p>';
+    $('movs').querySelectorAll('button').forEach(b=>b.onclick=async()=>{limpiar('mMov');try{await api('DELETE','/movimientos/'+b.dataset.i);await Promise.all([cargarMovs(),cargarResumen(),cargarConf()])}catch(e){aviso('mMov',e.message,false)}})}catch(e){}
+}
+$('btnDatos').onclick=async()=>{try{const d=await api('GET','/yo/datos');
+  $('datos').innerHTML=`<dl class="kv"><dt>Identificador</dt><dd>${d.id}</dd><dt>Correo</dt><dd>${esc(d.email)}</dd><dt>Cuenta creada</dt><dd>${new Date(d.creado_en).toLocaleString('es-CL')}</dd><dt>Perfil de riesgo</dt><dd>${d.perfil_riesgo||'no declarado'}</dd><dt>Consentimientos</dt><dd>${d.consentimientos.length?d.consentimientos.map(c=>c.tipo+': '+(c.otorgado?'sí':'no')+' (v'+c.version+')').join('<br>'):'ninguno'}</dd><dt>Movimientos</dt><dd>${d.movimientos.length}</dd><dt>Confirmaciones</dt><dd>${d.confirmaciones.length}</dd></dl><details style="margin-top:10px"><summary>Ver el JSON completo exportado</summary><pre>${esc(JSON.stringify(d,null,2))}</pre></details>`}catch(e){$('datos').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}};
+$('btnAct').onclick=async()=>{try{const l=await api('GET','/yo/actividad');
+  $('act').innerHTML=l.length?`<table><tr><th>Evento</th><th>Fecha</th></tr>${l.map(e=>`<tr><td>${EVT[e.tipo]||e.tipo}</td><td>${new Date(e.fecha).toLocaleString('es-CL')}</td></tr>`).join('')}</table>`:'<p class="note">Sin eventos.</p>'}catch(e){$('act').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}};
+function pintarCuentas(l){
+  $('cuentasBanco').innerHTML=l.length?`<table><tr><th>Cuenta</th><th>Número</th><th>Moneda</th><th>Saldo</th><th></th></tr>${l.map(c=>`<tr><td>${esc(c.nombre)}</td><td>${esc(c.numero_enmascarado)}</td><td>${c.moneda}</td><td>${c.saldo===null?'—':CLP(c.saldo)}</td><td><button class="sec" style="margin:0;padding:3px 8px" data-i="${esc(c.id)}">Ver movimientos</button></td></tr>`).join('')}</table>`:'<p class="note">El enlace no tiene cuentas.</p>';
+  $('cuentasBanco').querySelectorAll('button').forEach(b=>b.onclick=()=>verMovsBanco(b.dataset.i));
+}
+async function verMovsBanco(id){
+  limpiar('mBanco');
+  try{const l=await api('GET','/bancos/cuentas/'+encodeURIComponent(id)+'/movimientos');
+    $('movsBanco').innerHTML=`<h3 style="font-size:14px;margin:6px 0">Movimientos que informa el banco (cuenta ${esc(id)})</h3>`+(l.length?`<div style="overflow:auto"><table><tr><th>Fecha</th><th>Descripción</th><th>Monto</th></tr>${l.map(m=>`<tr><td>${m.fecha}</td><td style="text-align:left">${esc(m.descripcion)}</td><td style="color:${m.monto<0?'var(--err)':'var(--ok)'}">${CLP(m.monto)}</td></tr>`).join('')}</table></div><button id="btnImp">Importar los abonos como ingresos</button>`:'<p class="note">Sin movimientos.</p>');
+    const bi=$('btnImp');if(bi)bi.onclick=async()=>{try{const r=await api('POST','/bancos/cuentas/'+encodeURIComponent(id)+'/importar');aviso('mBanco','Importados: '+r.importados+' · ya importados: '+r.ya_importados+' · cargos sin importar: '+r.cargos_omitidos+'. Revisa las confirmaciones (sección 4).',true);await Promise.all([cargarConf(),cargarMovs(),cargarResumen()])}catch(e){aviso('mBanco',e.message,false)}}
+  }catch(e){aviso('mBanco',e.message,false)}
+}
+$('btnBanco').onclick=async()=>{limpiar('mBanco');try{
+  const l=await api('POST','/bancos/enlace',{link_token:$('linkTok').value.trim()});$('linkTok').value='';
+  aviso('mBanco','Banco conectado: el enlace quedó guardado cifrado en el servidor.',true);pintarCuentas(l)}catch(e){aviso('mBanco',e.message,false)}};
+$('btnDesc').onclick=async()=>{limpiar('mBanco');try{await api('DELETE','/bancos/enlace');$('cuentasBanco').innerHTML='';$('movsBanco').innerHTML='';aviso('mBanco','Banco desconectado: se borró el enlace.',true)}catch(e){aviso('mBanco',e.message,false)}};
+conectar();
+</script>
+</body>
+</html>

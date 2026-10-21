@@ -1,0 +1,15 @@
+DEMOSTRACIÓN WEB DE APP FINANCIERA
+===================================
+Sirve para mostrar el backend funcionando (registro, ingreso, reparto, confirmaciones,
+datos guardados y actividad de seguridad).
+
+1) En el archivo .env del backend agrega (o amplía) esta línea y reinicia el servidor:
+      CORS_ORIGINS=http://localhost:5500
+2) Terminal 1 (carpeta del backend, con el entorno virtual activo):
+      uvicorn app.main:app --reload
+3) Terminal 2 (carpeta demo_web):
+      python -m http.server 5500
+4) Abre en el navegador:  http://localhost:5500
+   Arriba a la derecha debe decir "API y base de datos activas" (punto verde).
+Orden sugerido: crear cuenta -> aceptar consentimientos -> registrar ingreso -> confirmar
+inversión/estabilidad -> registrar gasto -> ver resumen -> "Ver mis datos guardados".

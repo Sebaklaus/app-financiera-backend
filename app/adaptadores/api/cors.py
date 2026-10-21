@@ -17,7 +17,7 @@ def aplicar_cors(app: FastAPI, origenes: list[str]) -> None:
         CORSMiddleware,
         allow_origins=origenes,
         allow_credentials=False,  # los tokens viajan en el encabezado Authorization, no en cookies
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
         max_age=600,
     )

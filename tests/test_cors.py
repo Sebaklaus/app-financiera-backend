@@ -43,6 +43,20 @@ def test_preflight_permite_authorization_y_patch() -> None:
     assert "PATCH" in r.headers["access-control-allow-methods"]
 
 
+def test_preflight_permite_put() -> None:
+    cliente = _app(["http://localhost:5000"])
+    r = cliente.options(
+        "/ping",
+        headers={
+            "Origin": "http://localhost:5000",
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert r.status_code == 200
+    assert "PUT" in r.headers["access-control-allow-methods"]
+
+
 def test_sin_origenes_configurados_no_se_activa_cors() -> None:
     cliente = _app([])
     r = cliente.get("/ping", headers={"Origin": "http://localhost:5000"})
