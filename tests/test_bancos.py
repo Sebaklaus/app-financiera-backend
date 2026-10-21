@@ -12,7 +12,7 @@ from app.casos_de_uso.bancos import conectar_banco, cuentas_del_banco
 from app.dominio.banco import BancoNoDisponible, EnlaceBancarioInvalido, SinEnlaceBancario
 from app.infraestructura.base_de_datos import crear_fabrica_sesiones, crear_tablas
 from app.infraestructura.cifrador import CifradorFernet
-from app.infraestructura.proveedor_fintoc import ProveedorFintoc
+from app.infraestructura.proveedor_fintoc import ProveedorFintoc, pedir_por_internet
 from app.infraestructura.repositorio_enlaces_sql import RepositorioEnlacesSQL
 from tests.apoyo_api import crear_cliente
 from tests.dobles_bancos import EnlacesEnMemoria, ProveedorBancarioFalso
@@ -198,3 +198,12 @@ def test_fintoc_error_de_servidor_o_respuesta_rara_es_banco_no_disponible():
         _proveedor(200, "no es json")[0].listar_cuentas("l")
     with pytest.raises(BancoNoDisponible):
         _proveedor(200, [{"id": "m", "amount": 1, "post_date": ""}])[0].listar_movimientos("l", "a")
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["file:///etc/passwd", "http://api.fintoc.com/v1/accounts", "https://otro.com"],
+)
+def test_solo_se_habla_con_la_api_de_fintoc(url):
+    with pytest.raises(ValueError):
+        pedir_por_internet(url, "sk_test_x")

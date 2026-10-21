@@ -27,9 +27,15 @@ Pedir = Callable[[str, str], tuple[int, str]]
 
 
 def pedir_por_internet(url: str, clave: str) -> tuple[int, str]:
+    # urlopen también acepta file:// y otros esquemas: solo se habla con la API de Fintoc.
+    if not url.startswith(URL_BASE):
+        raise ValueError("La dirección no pertenece a la API de Fintoc")
     peticion = urllib.request.Request(url, headers={"Authorization": clave})
     try:
-        with urllib.request.urlopen(peticion, timeout=SEGUNDOS_DE_ESPERA) as respuesta:
+        # La dirección se validó arriba: siempre es https://api.fintoc.com.
+        with urllib.request.urlopen(  # nosec B310
+            peticion, timeout=SEGUNDOS_DE_ESPERA
+        ) as respuesta:
             return respuesta.status, respuesta.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         return error.code, error.read().decode("utf-8", errors="replace")
