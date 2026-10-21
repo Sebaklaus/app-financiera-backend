@@ -6,6 +6,7 @@ Cuando se agregue una tabla nueva, se anota su archivo aquí, y solo aquí.
 
 from app.infraestructura import (  # noqa: F401  (registran las tablas)
     repositorio_consentimientos_sql,
+    repositorio_enlaces_sql,
     repositorio_eventos_sql,
     repositorio_intentos_sql,
     repositorio_movimientos_sql,

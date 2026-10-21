@@ -13,6 +13,7 @@ from app.infraestructura.repositorio_consentimientos_sql import (
     ConsentimientoTabla,
     PerfilRiesgoTabla,
 )
+from app.infraestructura.repositorio_enlaces_sql import EnlaceBancarioTabla
 from app.infraestructura.repositorio_eventos_sql import EventoSeguridadTabla
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
 from app.infraestructura.repositorio_movimientos_sql import ConfirmacionTabla, MovimientoTabla
@@ -59,6 +60,9 @@ class RepositorioCuentaSQL(RepositorioUsuariosSQL):
                 update(EventoSeguridadTabla)
                 .where(EventoSeguridadTabla.usuario_id == usuario_id)
                 .values(usuario_id=None)
+            )
+            self._sesion.execute(
+                delete(EnlaceBancarioTabla).where(EnlaceBancarioTabla.usuario_id == usuario_id)
             )
             self._sesion.execute(
                 delete(ConsentimientoTabla).where(ConsentimientoTabla.usuario_id == usuario_id)

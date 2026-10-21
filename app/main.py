@@ -5,6 +5,7 @@ from app.adaptadores.api.cors import aplicar_cors
 from app.adaptadores.api.rutas import router
 from app.adaptadores.api.rutas_actividad import router as router_actividad
 from app.adaptadores.api.rutas_auth import router as router_auth
+from app.adaptadores.api.rutas_bancos import router as router_bancos
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
 from app.adaptadores.api.rutas_consentimientos import router as router_consentimientos
 from app.adaptadores.api.rutas_cuenta import router as router_cuenta
@@ -27,3 +28,4 @@ app.include_router(router_consentimientos)
 app.include_router(router_recuperacion)
 app.include_router(router_salud)
 app.include_router(router_actividad)
+app.include_router(router_bancos)

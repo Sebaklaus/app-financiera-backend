@@ -1,0 +1,31 @@
+PARCHE: DEMOSTRACIÓN WEB + CONEXIÓN BANCARIA (FINTOC SANDBOX)
+==============================================================
+1) Copia las carpetas app/, tests/ y migraciones/ de este zip SOBRE las de tu backend
+   (aceptar reemplazar). Copia también la carpeta demo_web/ dentro de tu proyecto.
+   Archivos que se modifican: main.py, modelos.py, repositorio_cuenta_sql.py, cors.py,
+   tests/apoyo_api.py y tests/test_cors.py. El resto son archivos nuevos.
+
+2) Agrega estas líneas a tu .env (sin comillas):
+      CORS_ORIGINS=http://localhost:5500
+      FINTOC_SECRET_KEY=sk_test_...        (tu Secret Key de TEST de Fintoc)
+      FINTOC_CLAVE_CIFRADO=...             (genérala con el comando de abajo)
+   Generar la clave de cifrado (una sola vez):
+      python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+3) Verifica y actualiza la base:
+      pytest
+      ruff check .
+      alembic upgrade head          (crea la tabla enlaces_bancarios, migración 0005)
+
+4) Levanta el backend (terminal 1):
+      uvicorn app.main:app --reload
+   Y la demo (terminal 2, dentro de demo_web):
+      python -m http.server 5500
+   Abre http://localhost:5500   (arriba debe decir "API y base de datos activas")
+
+5) En el Dashboard de Fintoc (modo test) crea un Link de prueba (banco sandbox, usuario
+   41614850-3, clave jonsnow) y copia su link_token. En la demo, sección 10, pégalo y
+   pulsa "Conectar banco". Luego "Ver movimientos" e "Importar los abonos".
+
+Notas: el link_token se guarda cifrado; la clave secreta de Fintoc solo vive en el servidor.
+Solo se leen cuentas y movimientos (el dinero no pasa por la app). Los cargos no se importan.
