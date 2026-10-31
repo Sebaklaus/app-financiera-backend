@@ -14,6 +14,7 @@ from app.casos_de_uso.editar_movimiento import editar_movimiento
 from app.casos_de_uso.eliminar_movimiento import eliminar_movimiento
 from app.casos_de_uso.listar_movimientos import listar_movimientos
 from app.casos_de_uso.obtener_resumen import obtener_resumen
+from app.casos_de_uso.obtener_tendencia import MESES_MAXIMOS, obtener_tendencia
 from app.casos_de_uso.puertos import RepositorioMovimientos
 from app.casos_de_uso.registrar_gasto import registrar_gasto
 from app.casos_de_uso.registrar_ingreso import registrar_ingreso
@@ -305,3 +306,34 @@ def get_resumen(
             for linea in resumen.lineas
         ],
     )
+
+
+class RespuestaMesTendencia(BaseModel):
+    mes: str  # AAAA-MM
+    ingresos: int
+    gastos: int
+    balance: int
+    gastos_por_categoria: dict[Categoria, int]
+
+
+@router.get(
+    "/tendencia",
+    response_model=list[RespuestaMesTendencia],
+    responses={401: _RESPUESTAS_PROTEGIDAS[401]},
+)
+def get_tendencia(
+    usuario_id: UsuarioActual,
+    repositorio: Repositorio,
+    meses: Annotated[int, Query(ge=1, le=MESES_MAXIMOS)] = 6,
+) -> list[RespuestaMesTendencia]:
+    """Ingresos y gastos de los últimos meses (del más antiguo al actual), para los gráficos."""
+    return [
+        RespuestaMesTendencia(
+            mes=str(mes.periodo),
+            ingresos=mes.ingresos,
+            gastos=mes.gastos,
+            balance=mes.balance,
+            gastos_por_categoria=mes.gastos_por_categoria,
+        )
+        for mes in obtener_tendencia(usuario_id, repositorio, meses)
+    ]

@@ -16,6 +16,7 @@ from app.infraestructura.repositorio_consentimientos_sql import (
 from app.infraestructura.repositorio_enlaces_sql import EnlaceBancarioTabla
 from app.infraestructura.repositorio_eventos_sql import EventoSeguridadTabla
 from app.infraestructura.repositorio_intentos_sql import IntentosLoginTabla
+from app.infraestructura.repositorio_metas_sql import AporteMetaTabla, MetaAhorroTabla
 from app.infraestructura.repositorio_movimientos_sql import ConfirmacionTabla, MovimientoTabla
 from app.infraestructura.repositorio_recuperacion_sql import TokenRecuperacionTabla
 from app.infraestructura.repositorio_tokens_sql import TokenRefrescoTabla
@@ -69,6 +70,12 @@ class RepositorioCuentaSQL(RepositorioUsuariosSQL):
             )
             self._sesion.execute(
                 delete(PerfilRiesgoTabla).where(PerfilRiesgoTabla.usuario_id == usuario_id)
+            )
+            self._sesion.execute(
+                delete(AporteMetaTabla).where(AporteMetaTabla.usuario_id == usuario_id)
+            )
+            self._sesion.execute(
+                delete(MetaAhorroTabla).where(MetaAhorroTabla.usuario_id == usuario_id)
             )
             self._sesion.execute(
                 delete(ConfirmacionTabla).where(ConfirmacionTabla.usuario_id == usuario_id)

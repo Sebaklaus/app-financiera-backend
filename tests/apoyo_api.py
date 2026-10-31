@@ -28,6 +28,7 @@ from app.adaptadores.api.dependencias_bancos import (
 )
 from app.adaptadores.api.dependencias_consentimientos import obtener_repositorio_consentimientos
 from app.adaptadores.api.dependencias_cuenta import obtener_repositorio_cuenta
+from app.adaptadores.api.dependencias_metas import obtener_repositorio_metas
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
 from app.adaptadores.api.dependencias_recuperacion import (
     obtener_enviador_correo,
@@ -39,6 +40,7 @@ from app.adaptadores.api.rutas_bancos import router as router_bancos
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
 from app.adaptadores.api.rutas_consentimientos import router as router_consentimientos
 from app.adaptadores.api.rutas_cuenta import router as router_cuenta
+from app.adaptadores.api.rutas_metas import router as router_metas
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_recuperacion import router as router_recuperacion
 from app.adaptadores.api.rutas_salud import router as router_salud
@@ -53,6 +55,7 @@ from app.infraestructura.repositorio_cuenta_sql import RepositorioCuentaSQL
 from app.infraestructura.repositorio_enlaces_sql import RepositorioEnlacesSQL
 from app.infraestructura.repositorio_eventos_sql import RepositorioEventosSQL
 from app.infraestructura.repositorio_intentos_sql import RepositorioIntentosSQL
+from app.infraestructura.repositorio_metas_sql import RepositorioMetasSQL
 from app.infraestructura.repositorio_movimientos_sql import RepositorioMovimientosSQL
 from app.infraestructura.repositorio_recuperacion_sql import RepositorioRecuperacionSQL
 from app.infraestructura.repositorio_tokens_sql import RepositorioTokensSQL
@@ -93,6 +96,10 @@ def crear_cliente() -> TestClient:
     def movimientos_de_prueba():
         with fabrica() as sesion:
             yield RepositorioMovimientosSQL(sesion)
+
+    def metas_de_prueba():
+        with fabrica() as sesion:
+            yield RepositorioMetasSQL(sesion)
 
     def tokens_de_prueba():
         with fabrica() as sesion:
@@ -137,12 +144,14 @@ def crear_cliente() -> TestClient:
         router_salud,
         router_actividad,
         router_bancos,
+        router_metas,
     ):
         app.include_router(router)
     # Cualquier ruta que pida la sesión directamente (por ejemplo /salud/listo) usa la de prueba.
     app.dependency_overrides[obtener_sesion] = sesion_de_prueba
     app.dependency_overrides[obtener_repositorio_usuarios] = usuarios_de_prueba
     app.dependency_overrides[obtener_repositorio_movimientos] = movimientos_de_prueba
+    app.dependency_overrides[obtener_repositorio_metas] = metas_de_prueba
     app.dependency_overrides[obtener_repositorio_tokens] = tokens_de_prueba
     app.dependency_overrides[obtener_repositorio_intentos] = intentos_de_prueba
     app.dependency_overrides[obtener_repositorio_cuenta] = cuenta_de_prueba

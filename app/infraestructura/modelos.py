@@ -9,6 +9,7 @@ from app.infraestructura import (  # noqa: F401  (registran las tablas)
     repositorio_enlaces_sql,
     repositorio_eventos_sql,
     repositorio_intentos_sql,
+    repositorio_metas_sql,
     repositorio_movimientos_sql,
     repositorio_recuperacion_sql,
     repositorio_tokens_sql,

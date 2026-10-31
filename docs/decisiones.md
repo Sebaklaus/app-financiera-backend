@@ -343,3 +343,25 @@ la cantidad de cada tipo de evento en las últimas 24 horas: base para alertas (
 muchos `login_fallido` o cualquier `refresco_reutilizado`).
 
 **Pendiente:** alertas automáticas, y el procedimiento de reporte de incidentes (Ley 21.663).
+
+## D22. Metas de ahorro: la app registra, no mueve dinero
+
+- **Contexto:** CU-08 pide que la persona fije una meta y vea su avance.
+- **Decisión:** una meta tiene nombre, monto objetivo (CLP entero) y fecha límite opcional. Los aportes son
+  anotaciones de lo que la persona dice haber apartado; la app nunca mueve dinero. El avance
+  (ahorrado, falta, porcentaje, cumplida) se calcula en el dominio a partir de los aportes, no se guarda.
+- **Reglas:** monto entero mayor que 0; fecha límite no puede estar en el pasado; un aporte no puede
+  ser del futuro; el porcentaje se redondea hacia abajo y se detiene en 100 aunque se ahorre de más.
+- **Privacidad:** toda consulta filtra por `usuario_id`; la meta de otra persona responde 404. Al eliminar
+  la cuenta se borran metas y aportes (derecho de supresión).
+- **Consecuencia:** la exportación de datos (`/yo/datos`) aún no incluye metas; queda pendiente.
+
+## D23. Panel de gráficos: una ruta de tendencia y gráficos sin librerías
+
+- **Contexto:** CU-09 pide ver cómo van los ingresos y gastos en el tiempo.
+- **Decisión:** `GET /tendencia?meses=N` (1 a 12, por defecto 6) devuelve, del más antiguo al actual, los
+  ingresos, gastos, balance y gastos por categoría de cada mes. Siempre vienen todos los meses pedidos
+  (en cero si no hubo movimientos) para que el gráfico no tenga huecos. Cada mes se mira por separado.
+- **Cliente:** los gráficos se dibujan con widgets simples de Flutter, sin librería externa: una dependencia
+  menos que mantener y auditar, y cada gráfico trae un texto equivalente para lectores de pantalla.
+- **Consecuencia:** el balance usa los movimientos registrados; no incluye saldos de bancos.

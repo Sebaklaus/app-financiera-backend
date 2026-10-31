@@ -55,3 +55,11 @@ class MovimientoNoEncontrado(ErrorDeDominio):
 
 class EdicionNoPermitida(ErrorDeDominio):
     """El cambio contradice decisiones ya tomadas (p. ej. el monto de un ingreso repartido)."""
+
+
+class MetaInvalida(ErrorDeDominio):
+    """Una meta de ahorro o un aporte con datos que no cumplen las reglas."""
+
+
+class MetaNoEncontrada(ErrorDeDominio):
+    """No existe esa meta, o pertenece a otra persona (no se distingue a propósito)."""

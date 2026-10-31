@@ -17,7 +17,15 @@ from sqlalchemy import create_engine, inspect
 from app.infraestructura.modelos import Base
 
 RAIZ = Path(__file__).resolve().parent.parent
-TABLAS = {"usuarios", "movimientos", "confirmaciones", "tokens_refresco", "intentos_login"}
+TABLAS = {
+    "usuarios",
+    "movimientos",
+    "confirmaciones",
+    "tokens_refresco",
+    "intentos_login",
+    "meta_ahorro",
+    "aporte_meta",
+}
 
 
 @pytest.fixture
