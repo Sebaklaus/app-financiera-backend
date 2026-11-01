@@ -365,3 +365,31 @@ muchos `login_fallido` o cualquier `refresco_reutilizado`).
 - **Cliente:** los gráficos se dibujan con widgets simples de Flutter, sin librería externa: una dependencia
   menos que mantener y auditar, y cada gráfico trae un texto equivalente para lectores de pantalla.
 - **Consecuencia:** el balance usa los movimientos registrados; no incluye saldos de bancos.
+
+## D24. Conexión bancaria por intercambio: el enlace nace y vive en el servidor
+
+- **Contexto:** hasta ahora el `link_token` se obtenía con un script aparte y se pegaba en la app.
+- **Decisión:** la conexión pasa a dos pasos. `POST /bancos/intencion` pide a Fintoc un `widget_token` y
+  devuelve también la clave pública (`pk_`, que no es secreta) para abrir el widget. Cuando la persona
+  termina, el widget entrega un código de un solo uso (`exchange_token`); `POST /bancos/intercambio` lo
+  cambia en el servidor por el `link_token`, valida que funcione consultando las cuentas y lo guarda cifrado.
+- **Seguridad:** la clave secreta (`sk_`) y el `link_token` nunca viajan al cliente; el código de intercambio
+  se escapa al armar la URL y sirve una sola vez. Las credenciales del banco solo las ve el widget de Fintoc.
+- **Pendiente:** abrir el widget dentro del cliente (WebView en Android/iOS, JS en web) y los webhooks de Fintoc.
+  El script `obtener_link_token.py` y el pegado manual siguen sirviendo en sandbox.
+
+## D25. Derivación a inversión: catálogo educativo y entidades socias simuladas
+
+- **Contexto:** HU-08 y HU-09 piden mostrar opciones de inversión según el perfil y redirigir a la entidad
+  socia. Todavía no hay convenios firmados con bancos ni administradoras de fondos.
+- **Decisión:** `GET /inversion/opciones` entrega un catálogo fijo (cuenta de ahorro, depósito a plazo y tres
+  fondos mutuos de riesgo bajo, medio y alto), ordenado con lo que calza con el perfil primero. Un
+  instrumento es "recomendado" si su riesgo no supera el que la persona declaró aceptar. `POST
+  /inversion/derivaciones` devuelve la redirección y anota el evento `derivacion_inversion` en la bitácora.
+- **Honestidad:** las entidades se llaman "(simuladas)" y sus direcciones usan el dominio `.invalid`, que
+  nunca apunta a un sitio real. El catálogo no informa rentabilidades ni promete resultados, y la respuesta
+  incluye un aviso de que es información educativa, no una recomendación de inversión.
+- **Regla de oro:** la app no vende ni custodia ni mueve dinero (RNF-06); el monto que la persona escribe
+  solo orienta y no se guarda.
+- **Consecuencia:** cuando existan convenios, solo cambian el catálogo y los adaptadores; las pantallas y
+  las reglas quedan igual. Queda pendiente definir cómo cada entidad informa el resultado de la operación.

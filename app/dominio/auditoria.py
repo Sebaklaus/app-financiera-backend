@@ -29,6 +29,7 @@ class TipoEvento(str, Enum):
     RECUPERACION_SOLICITADA = "recuperacion_solicitada"
     RECUPERACION_COMPLETADA = "recuperacion_completada"
     RECUPERACION_FALLIDA = "recuperacion_fallida"
+    DERIVACION_INVERSION = "derivacion_inversion"
 
 
 class ReusoDeToken(TokenInvalido):

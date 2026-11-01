@@ -8,15 +8,18 @@ from pydantic import BaseModel, Field
 
 from app.adaptadores.api.dependencias_auth import obtener_usuario_actual_id
 from app.adaptadores.api.dependencias_bancos import (
+    obtener_clave_publica_fintoc,
     obtener_proveedor_bancario,
     obtener_repositorio_enlaces,
 )
 from app.adaptadores.api.dependencias_movimientos import obtener_repositorio_movimientos
 from app.casos_de_uso.bancos import (
     conectar_banco,
+    conectar_con_intercambio,
     cuentas_del_banco,
     desconectar_banco,
     importar_abonos,
+    iniciar_conexion,
     movimientos_del_banco,
 )
 from app.casos_de_uso.puertos import RepositorioMovimientos
@@ -41,6 +44,15 @@ _RESPUESTAS = {
 
 class SolicitudEnlace(BaseModel):
     link_token: Annotated[str, Field(min_length=1, max_length=200)]
+
+
+class SolicitudIntercambio(BaseModel):
+    exchange_token: Annotated[str, Field(min_length=1, max_length=200)]
+
+
+class RespuestaIntencion(BaseModel):
+    widget_token: str
+    public_key: str
 
 
 class RespuestaCuenta(BaseModel):
@@ -96,6 +108,37 @@ def post_enlace(
     """Conecta tu banco: valida el enlace con Fintoc y lo guarda cifrado. Devuelve tus cuentas."""
     try:
         return _cuentas(conectar_banco(usuario_id, solicitud.link_token, enlaces, proveedor))
+    except _ERRORES as error:
+        raise _http(error) from error
+
+
+@router.post("/intencion", response_model=RespuestaIntencion, responses=_RESPUESTAS)
+def post_intencion(
+    usuario_id: UsuarioActual,
+    proveedor: Proveedor,
+    clave_publica: Annotated[str, Depends(obtener_clave_publica_fintoc)],
+) -> RespuestaIntencion:
+    """Paso 1: entrega lo necesario para abrir la ventana segura de Fintoc (widget)."""
+    try:
+        widget_token = iniciar_conexion(proveedor)
+    except _ERRORES as error:
+        raise _http(error) from error
+    return RespuestaIntencion(widget_token=widget_token, public_key=clave_publica)
+
+
+@router.post("/intercambio", response_model=list[RespuestaCuenta], responses=_RESPUESTAS)
+def post_intercambio(
+    solicitud: SolicitudIntercambio,
+    usuario_id: UsuarioActual,
+    enlaces: Enlaces,
+    proveedor: Proveedor,
+) -> list[RespuestaCuenta]:
+    """Paso 2: cambia el código del widget por el enlace, que se guarda cifrado en el servidor."""
+    try:
+        cuentas = conectar_con_intercambio(
+            usuario_id, solicitud.exchange_token, enlaces, proveedor
+        )
+        return _cuentas(cuentas)
     except _ERRORES as error:
         raise _http(error) from error
 

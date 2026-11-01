@@ -23,6 +23,7 @@ from app.adaptadores.api.dependencias_auth import (
     obtener_repositorio_tokens,
 )
 from app.adaptadores.api.dependencias_bancos import (
+    obtener_clave_publica_fintoc,
     obtener_proveedor_bancario,
     obtener_repositorio_enlaces,
 )
@@ -40,6 +41,7 @@ from app.adaptadores.api.rutas_bancos import router as router_bancos
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
 from app.adaptadores.api.rutas_consentimientos import router as router_consentimientos
 from app.adaptadores.api.rutas_cuenta import router as router_cuenta
+from app.adaptadores.api.rutas_inversion import router as router_inversion
 from app.adaptadores.api.rutas_metas import router as router_metas
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_recuperacion import router as router_recuperacion
@@ -144,6 +146,7 @@ def crear_cliente() -> TestClient:
         router_salud,
         router_actividad,
         router_bancos,
+        router_inversion,
         router_metas,
     ):
         app.include_router(router)
@@ -160,6 +163,7 @@ def crear_cliente() -> TestClient:
     app.dependency_overrides[obtener_enviador_correo] = lambda: espia
     app.dependency_overrides[obtener_repositorio_enlaces] = enlaces_de_prueba
     app.dependency_overrides[obtener_proveedor_bancario] = lambda: banco
+    app.dependency_overrides[obtener_clave_publica_fintoc] = lambda: "pk_test_prueba"
     app.dependency_overrides[obtener_repositorio_consentimientos] = consentimientos_de_prueba
     app.dependency_overrides[obtener_hasheador] = lambda: HasheadorBcrypt(costo=4)
     app.dependency_overrides[obtener_emisor_tokens] = lambda: EmisorJWT(PRIVADA, PUBLICA)

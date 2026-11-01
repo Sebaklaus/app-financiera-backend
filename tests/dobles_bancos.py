@@ -27,6 +27,24 @@ class ProveedorBancarioFalso:
         self.cuentas = [CUENTA]
         self.movimientos = [ABONO, CARGO]
         self.consultas: list[str] = []
+        self.exchange_valido = "exch_ok"
+        self.exchanges_usados: list[str] = []
+        self.intenciones = 0
+
+    def crear_intencion(self) -> str:
+        if self.caido:
+            raise BancoNoDisponible("Fintoc no está disponible en este momento")
+        self.intenciones += 1
+        return "widget_token_prueba"
+
+    def intercambiar(self, exchange_token: str) -> str:
+        if self.caido:
+            raise BancoNoDisponible("Fintoc no está disponible en este momento")
+        # Como en Fintoc, el código sirve una sola vez.
+        if exchange_token != self.exchange_valido or exchange_token in self.exchanges_usados:
+            raise EnlaceBancarioInvalido("El código del banco no es válido o ya se usó")
+        self.exchanges_usados.append(exchange_token)
+        return self.link_valido
 
     def _revisar(self, link_token: str) -> None:
         self.consultas.append(link_token)

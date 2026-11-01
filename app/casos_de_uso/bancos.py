@@ -54,6 +54,28 @@ def conectar_banco(
     return cuentas
 
 
+def iniciar_conexion(proveedor: ProveedorBancario) -> str:
+    """Primer paso de la conexión: un widget_token para abrir la ventana segura de Fintoc."""
+    return proveedor.crear_intencion()
+
+
+def conectar_con_intercambio(
+    usuario_id: UUID,
+    exchange_token: str,
+    enlaces: RepositorioEnlaces,
+    proveedor: ProveedorBancario,
+) -> list[CuentaBancaria]:
+    """Último paso de la conexión: cambia el código de un solo uso por el enlace y lo guarda.
+
+    El link_token nunca viaja al teléfono: queda en el servidor, cifrado.
+    """
+    codigo = exchange_token.strip()
+    if not codigo or len(codigo) > LARGO_MAXIMO_LINK:
+        raise EnlaceBancarioInvalido("El código del banco no es válido")
+    link = proveedor.intercambiar(codigo)
+    return conectar_banco(usuario_id, link, enlaces, proveedor)
+
+
 def desconectar_banco(usuario_id: UUID, enlaces: RepositorioEnlaces) -> bool:
     return enlaces.eliminar(usuario_id)
 

@@ -34,3 +34,13 @@ def obtener_proveedor_bancario() -> ProveedorFintoc:
     if not clave:
         raise HTTPException(503, "La conexión bancaria no está configurada (falta Fintoc)")
     return ProveedorFintoc(clave)
+
+
+def obtener_clave_publica_fintoc() -> str:
+    """La clave pública (pk_...) que el widget de Fintoc necesita. No es secreta."""
+    clave = os.getenv("FINTOC_PUBLIC_KEY")
+    if not clave:
+        raise HTTPException(
+            503, "La conexión bancaria no está configurada (falta la clave pública)"
+        )
+    return clave

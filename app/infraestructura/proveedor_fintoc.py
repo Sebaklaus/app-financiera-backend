@@ -24,6 +24,8 @@ POR_PAGINA = 100
 
 # (url, clave secreta) -> (código HTTP, cuerpo). Se puede reemplazar en las pruebas.
 Pedir = Callable[[str, str], tuple[int, str]]
+# (url, clave secreta, cuerpo JSON) -> (código HTTP, cuerpo). Para las llamadas POST.
+Enviar = Callable[[str, str, dict], tuple[int, str]]
 
 
 def pedir_por_internet(url: str, clave: str) -> tuple[int, str]:
@@ -43,10 +45,59 @@ def pedir_por_internet(url: str, clave: str) -> tuple[int, str]:
         raise BancoNoDisponible("No se pudo conectar con Fintoc") from error
 
 
+def enviar_por_internet(url: str, clave: str, cuerpo: dict) -> tuple[int, str]:
+    if not url.startswith(URL_BASE):
+        raise ValueError("La dirección no pertenece a la API de Fintoc")
+    peticion = urllib.request.Request(
+        url,
+        data=json.dumps(cuerpo).encode("utf-8"),
+        method="POST",
+        headers={"Authorization": clave, "Content-Type": "application/json"},
+    )
+    try:
+        # La dirección se validó arriba: siempre es https://api.fintoc.com.
+        with urllib.request.urlopen(  # nosec B310
+            peticion, timeout=SEGUNDOS_DE_ESPERA
+        ) as respuesta:
+            return respuesta.status, respuesta.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        return error.code, error.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        raise BancoNoDisponible("No se pudo conectar con Fintoc") from error
+
+
 class ProveedorFintoc:
-    def __init__(self, clave_secreta: str, pedir: Pedir = pedir_por_internet) -> None:
+    def __init__(
+        self,
+        clave_secreta: str,
+        pedir: Pedir = pedir_por_internet,
+        enviar: Enviar = enviar_por_internet,
+    ) -> None:
         self._clave = clave_secreta
         self._pedir = pedir
+        self._enviar = enviar
+
+    def crear_intencion(self) -> str:
+        codigo, cuerpo = self._enviar(
+            f"{URL_BASE}/link_intents",
+            self._clave,
+            {"country": "cl", "holder_type": "individual", "product": "movements"},
+        )
+        datos = _objeto(codigo, cuerpo, "Fintoc rechazó la solicitud: revisa la clave secreta")
+        token = datos.get("widget_token")
+        if not isinstance(token, str) or not token:
+            raise BancoNoDisponible("Fintoc respondió algo inesperado")
+        return token
+
+    def intercambiar(self, exchange_token: str) -> str:
+        consulta = urllib.parse.urlencode({"exchange_token": exchange_token})
+        url = f"{URL_BASE}/links/exchange?{consulta}"
+        codigo, cuerpo = self._pedir(url, self._clave)
+        datos = _objeto(codigo, cuerpo, "El código del banco no es válido o ya se usó")
+        link = datos.get("link_token")
+        if not isinstance(link, str) or not link:
+            raise BancoNoDisponible("Fintoc respondió algo inesperado")
+        return link
 
     def _get(self, ruta: str, parametros: dict[str, str | int]) -> list[dict]:
         url = f"{URL_BASE}{ruta}?{urllib.parse.urlencode(parametros)}"
@@ -82,6 +133,21 @@ class ProveedorFintoc:
             return [_a_movimiento(fila) for fila in filas]
         except (ValueError, TypeError) as error:
             raise BancoNoDisponible("Fintoc respondió movimientos inesperados") from error
+
+
+def _objeto(codigo: int, cuerpo: str, rechazo: str) -> dict:
+    """Lee una respuesta de Fintoc que debe ser un objeto JSON."""
+    if codigo >= 500:
+        raise BancoNoDisponible("Fintoc no está disponible en este momento")
+    if codigo not in (200, 201):
+        raise EnlaceBancarioInvalido(rechazo)
+    try:
+        datos = json.loads(cuerpo)
+    except ValueError as error:
+        raise BancoNoDisponible("Fintoc respondió algo inesperado") from error
+    if not isinstance(datos, dict):
+        raise BancoNoDisponible("Fintoc respondió algo inesperado")
+    return datos
 
 
 def _a_cuenta(fila: dict) -> CuentaBancaria:

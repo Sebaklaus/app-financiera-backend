@@ -21,6 +21,14 @@ class RepositorioEnlaces(Protocol):
 
 
 class ProveedorBancario(Protocol):
+    def crear_intencion(self) -> str:
+        """Pide al proveedor un widget_token para abrir su ventana de conexión."""
+        ...
+
+    def intercambiar(self, exchange_token: str) -> str:
+        """Cambia el código de un solo uso que entrega el widget por el link_token permanente."""
+        ...
+
     def listar_cuentas(self, link_token: str) -> list[CuentaBancaria]: ...
 
     def listar_movimientos(self, link_token: str, cuenta_id: str) -> list[MovimientoBancario]: ...

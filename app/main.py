@@ -9,6 +9,7 @@ from app.adaptadores.api.rutas_bancos import router as router_bancos
 from app.adaptadores.api.rutas_confirmaciones import router as router_confirmaciones
 from app.adaptadores.api.rutas_consentimientos import router as router_consentimientos
 from app.adaptadores.api.rutas_cuenta import router as router_cuenta
+from app.adaptadores.api.rutas_inversion import router as router_inversion
 from app.adaptadores.api.rutas_metas import router as router_metas
 from app.adaptadores.api.rutas_movimientos import router as router_movimientos
 from app.adaptadores.api.rutas_recuperacion import router as router_recuperacion
@@ -30,4 +31,5 @@ app.include_router(router_recuperacion)
 app.include_router(router_salud)
 app.include_router(router_actividad)
 app.include_router(router_bancos)
+app.include_router(router_inversion)
 app.include_router(router_metas)
