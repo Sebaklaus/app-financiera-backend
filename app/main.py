@@ -17,7 +17,7 @@ from app.adaptadores.api.rutas_salud import router as router_salud
 from app.adaptadores.api.rutas_usuarios import router as router_usuarios
 from app.configuracion import origenes_cors
 
-app = FastAPI(title="App financiera API", version="0.1.0")
+app = FastAPI(title="HelpFinance API", version="0.1.0")
 aplicar_cors(app, origenes_cors())
 aplicar_cabeceras_seguridad(app)
 app.include_router(router)
